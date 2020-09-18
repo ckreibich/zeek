@@ -104,6 +104,13 @@ function run_external_btests
 
 banner "Start tests: ${ZEEK_CI_CPUS} cpus, ${ZEEK_CI_BTEST_JOBS} btest jobs"
 
+which cmp
+which diff
+
+rpm -qf /usr/bin/diff
+
+rpm -qa '*diff*'
+
 run_unit_tests
 run_btests
 run_external_btests
