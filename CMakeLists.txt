@@ -405,6 +405,10 @@ if ( FTS_FOUND )
     include_directories(BEFORE ${FTS_INCLUDE_DIR})
 endif ()
 
+if ( INSTALL_ZKG )
+    add_subdirectory(auxil/package-manager)
+endif ()
+
 set(zeekdeps ${zeekdeps}
     ${BinPAC_LIBRARY}
     ${PCAP_LIBRARY}
@@ -507,6 +511,7 @@ InstallSymlink("${CMAKE_INSTALL_PREFIX}/bin/zeek-wrapper" "${CMAKE_INSTALL_PREFI
 add_subdirectory(src)
 add_subdirectory(scripts)
 add_subdirectory(man)
+add_subdirectory(packages)
 
 include(CheckOptionalBuildSources)
 
@@ -555,6 +560,7 @@ message(
     "\n"
     "\nZeekControl:       ${INSTALL_ZEEKCTL}"
     "\nAux. Tools:        ${INSTALL_AUX_TOOLS}"
+    "\nzkg:               ${INSTALL_ZKG}"
     "\n"
     "\nlibmaxminddb:      ${USE_GEOIP}"
     "\nKerberos:          ${USE_KRB5}"
