@@ -6,17 +6,11 @@
 # the creation of file IDs. Please change this to a hard to guess value.
 redef digest_salt = "Please change this value.";
 
-# This script logs which scripts were loaded during each run.
-@load misc/loaded-scripts
-
 # Apply the default tuning scripts for common tuning settings.
 @load tuning/defaults
 
 # Estimate and log capture loss.
 @load misc/capture-loss
-
-# Enable logging of memory, packet and lag statistics.
-@load misc/stats
 
 # Load the scan detection script.  It's disabled by default because
 # it often causes performance issues.
@@ -104,3 +98,6 @@ redef digest_salt = "Please change this value.";
 # Uncomment the following line to enable logging of link-layer addresses. Enabling
 # this adds the link-layer address for each connection endpoint to the conn.log file.
 # @load policy/protocols/conn/mac-logging
+
+# Automatically load packages as controlled by zkg
+@load packages
