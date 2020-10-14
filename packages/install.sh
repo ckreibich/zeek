@@ -11,9 +11,13 @@ if [ -n "$1" ]; then
     PATH="$PATH:$1"
 fi
 
+if [ -n "$2" ]; then
+    VERSION="--version $2"
+fi
+
 if type -P zeek-config; then
     zkg autoconfig
 fi
 
-zkg --config $DIR/zkg-config.ini install --force --skiptests zeek-packages/zeek-package-collection
+zkg --config $DIR/zkg-config.ini install --force --skiptests $VERSION zeek-packages/zeek-package-collection
 zkg list
