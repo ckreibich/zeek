@@ -6,3 +6,4 @@ set -e
 set -x
 
 brew install cmake swig openssl bison
+python -m ensurepip
