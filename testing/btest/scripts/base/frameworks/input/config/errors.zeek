@@ -12,6 +12,7 @@ testbool A B
 testcount A
 testenum unknown
 testbooool T
+test_set whatever
 test_any F
 test_table whatever
 @TEST-END-FILE
@@ -31,7 +32,7 @@ export {
 	option testtime = network_time();
 	option testinterval = 1sec;
 	option teststring = "a";
-	option test_set: set[string] = {};
+	option test_set: set[addr,addr] = {};
 	option test_vector: vector of count = {};
 	option test_any: any = 5;
 	option test_table: table[string] of string = {};
