@@ -12,6 +12,8 @@ enum ClusterRole %{
 	MANAGER,
 	PROXY,
 	WORKER,
+	AGENT,
+	CONTROLLER,
 %}
 
 type Supervisor::ClusterEndpoint: record;

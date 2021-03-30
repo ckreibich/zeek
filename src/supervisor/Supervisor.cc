@@ -1218,6 +1218,10 @@ static BifEnum::Supervisor::ClusterRole role_str_to_enum(std::string_view r)
 		return BifEnum::Supervisor::PROXY;
 	if ( r == "Supervisor::WORKER" )
 		return BifEnum::Supervisor::WORKER;
+	if ( r == "Supervisor::AGENT" )
+		return BifEnum::Supervisor::AGENT;
+	if ( r == "Supervisor::CONTROLLER" )
+		return BifEnum::Supervisor::CONTROLLER;
 
 	return BifEnum::Supervisor::NONE;
 	}
@@ -1425,6 +1429,10 @@ static ValPtr supervisor_role_to_cluster_node_type(BifEnum::Supervisor::ClusterR
 		return node_type->GetEnumVal(node_type->Lookup("Cluster", "PROXY"));
 	case BifEnum::Supervisor::WORKER:
 		return node_type->GetEnumVal(node_type->Lookup("Cluster", "WORKER"));
+	case BifEnum::Supervisor::AGENT:
+		return node_type->GetEnumVal(node_type->Lookup("Cluster", "AGENT"));
+	case BifEnum::Supervisor::CONTROLLER:
+		return node_type->GetEnumVal(node_type->Lookup("Cluster", "CONTROLLER"));
 	default:
 		return node_type->GetEnumVal(node_type->Lookup("Cluster", "NONE"));
 	}
@@ -1454,6 +1462,7 @@ bool SupervisedNode::InitCluster() const
 		{
 		const auto& node_name = e.first;
 		const auto& ep = e.second;
+
 		auto key = make_intrusive<StringVal>(node_name);
 		auto val = make_intrusive<RecordVal>(cluster_node_type);
 
