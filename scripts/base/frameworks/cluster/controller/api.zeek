@@ -16,7 +16,8 @@ export {
 	};
 
 	# Configuration describing a Zeek instance running a Cluster
-	# Agent. Normally, there'll be one instance per cluster system.
+	# Agent. Normally, there'll be one instance per cluster
+	# system: a single physical system.
 	type Instance: record {
 		# Unique, human-readable instance name
 		name: string;
@@ -25,7 +26,8 @@ export {
 		# Port where Broker is listening
 		listen_port: port;
 		# True if instance will connect to controller, not vice versa
-	        outbound: bool;
+		# XXX for now assume controller -> instance
+	        # outbound: bool;
 	};
 
 	# State that a Cluster Node can be in. State changes trigger an

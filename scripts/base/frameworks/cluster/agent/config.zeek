@@ -1,0 +1,51 @@
+module ClusterAgent;
+
+export {
+	# The name this agent uses to represent the cluster instance
+        # it manages. When the environment variable isn't set, this
+	# falls back to gethostname().
+	const name = getenv("ZEEK_AGENT_NAME") &redef;
+
+	# Agent stdout/stderr log files to produce in Zeek's working
+	# directory. If empty, no such logs will result. The actual
+	# log files have the agent's name (as per above) dot-prefixed.
+	const stdout_file_suffix = "agent.stdout" &redef;
+	const stderr_file_suffix = "agent.stderr" &redef;
+
+	const listen_addr = getenv("ZEEK_AGENT_ADDR") &redef;
+	const default_addr = 127.0.0.1 &redef;
+
+	const listen_port = getenv("ZEEK_AGENT_PORT") &redef;
+	const default_port = 2151/tcp &redef;
+
+	# The agent communicates under to following topic prefix,
+	# suffixed with "/<name>" (see above):
+	const topic_prefix = "zeek/cluster-control/agent" &redef;
+
+        global endpoint_info: function(): Broker::EndpointInfo;
+}
+
+function endpoint_info(): Broker::EndpointInfo
+	{
+	local epi: Broker::EndpointInfo;
+	local network: Broker::NetworkInfo;
+
+	if ( ClusterAgent::name != "" )
+		epi$id = ClusterAgent::name;
+	else
+		epi$id = gethostname();
+
+	if ( ClusterAgent::listen_addr != "" )
+		network$address = ClusterAgent::listen_addr;
+	else
+		network$address = cat(ClusterAgent::default_addr);
+
+	if ( ClusterAgent::listen_port != "" )
+		network$bound_port = to_port(ClusterAgent::listen_port);
+	else
+		network$bound_port = ClusterAgent::default_port;
+
+	epi$network = network;
+
+	return epi;
+	}
