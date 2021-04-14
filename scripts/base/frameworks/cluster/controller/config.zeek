@@ -17,6 +17,9 @@ export {
 	const listen_port = getenv("ZEEK_CONTROLLER_PORT") &redef;
 	const default_port = 2150/tcp &redef;
 
+	# A more aggressive default retry interval (vs default 30s)
+	const agent_connect_retry = 1sec &redef;
+
 	# The controller listens for messages on this topic:
 	const topic = "zeek/cluster-control/controller" &redef;
 

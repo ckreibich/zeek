@@ -1,8 +1,6 @@
 @load base/frameworks/broker
 @load base/frameworks/cluster/agent
 
-module ClusterController;
-
 event zeek_init()
 	{
 	local cni = ClusterController::network_info();
@@ -13,9 +11,15 @@ event zeek_init()
 	for ( i in ClusterController::agents )
 		{
 		local epi = ClusterController::agents[i];
-		Broker::peer(epi$network$address, epi$network$bound_port);
+		Broker::peer(epi$network$address, epi$network$bound_port,
+		    ClusterController::agent_connect_retry);
 		}
 
 	Broker::subscribe(ClusterAgent::topic_prefix);
 	Broker::subscribe(ClusterController::topic);
+	}
+
+event ClusterAgent::notify_agent_hello(instance: string, host: addr, api_version: count)
+	{
+	print("WAHOO!");
 	}
