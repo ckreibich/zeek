@@ -46,7 +46,7 @@ export {
 		instance: string; # Name of instance where node is to run
 		role: Role;     # Role of the node.
 		state: State;   # Desired, or current, run state.
-		scripts: set[string];     # Additional Zeek scripts for node
+		scripts: vector of string;     # Additional Zeek scripts for node
 		options: set[Option];    # Zeek options for node
 		interface: string &optional;     # Interface to sniff
 		cpu_affinity: int &optional;     # CPU/core number to pin to

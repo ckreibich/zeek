@@ -19,7 +19,9 @@ event zeek_init()
 	Broker::subscribe(ClusterController::topic);
 	}
 
-event ClusterAgent::notify_agent_hello(instance: string, host: addr, api_version: count)
+event ClusterAgent::notify_agent_hello(instance: string, host: addr,
+                                       api_version: count)
 	{
+	# XXX API version verification
 	print("WAHOO!");
 	}

@@ -1,9 +1,26 @@
+@load base/frameworks/supervisor/control
 @load base/frameworks/cluster/controller/types
 
 module ClusterAgent;
 
 export {
 	const api_version = 1;
+
+	# Agent API methods
+
+	global ClusterAgent::set_nodes: function(
+	    nodes: set[ClusterController::Types::Node]):
+	    vector of ClusterController::Types::Result;
+
+	# Agent API events, named after methods, with request/response
+	# pairing. These are initiated by the controller.
+	global ClusterAgent::set_nodes_request: event(
+	    reqid: string, nodes: set[ClusterController::Types::Node]);
+
+	global ClusterAgent::set_nodes_response: event(
+	    reqid: string, result: vector of ClusterController::Types::Result);
+
+	# Notification events, agent -> controller
 
 	# Report agent being available.
 	global ClusterAgent::notify_agent_hello: event(
@@ -25,3 +42,42 @@ export {
 	    instance: string, msg: string,
 	    n: ClusterController::Types::Node &optional);
 }
+
+
+function set_nodes(nodes: set[ClusterController::Types::Node]):
+    vector of ClusterController::Types::Result
+	{
+	local cluster: table[string] of Supervisor::ClusterEndpoint;
+	local res: vector of ClusterController::Types::Result;
+
+	for ( node in nodes )
+		{
+		local snc = Supervisor::NodeConfig($name=node$name);
+		local cle: Supervisor::ClusterEndpoint;
+
+		if ( node?$scripts )
+			snc$scripts = node$scripts;
+		if ( node?$interface )
+			snc$interface = node$interface;
+		if ( node?$cpu_affinity )
+			snc$cpu_affinity = node$cpu_affinity;
+
+		switch ( node$role )
+			{
+			case ClusterController::Types::LOGGER:
+				cle$role = Supervisor::LOGGER;
+				break;
+			case ClusterController::Types::MANAGER:
+				cle$role = Supervisor::MANAGER;
+				break;
+			case ClusterController::Types::PROXY:
+				cle$role = Supervisor::PROXY;
+				break;
+			case ClusterController::Types::WORKER:
+				cle$role = Supervisor::WORKER;
+				break;
+			}
+		}
+
+		cluster[node$name] = cle;
+	}
