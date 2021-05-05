@@ -1,6 +1,24 @@
 module ClusterController::Types;
 
 export {
+	## The cluster logging stream identifier.
+	redef enum Log::ID += { LOG };
+
+	## A default logging policy hook for the stream.
+	global log_policy: Log::PolicyHook;
+
+	## The record type which contains the column fields of the cluster log.
+	type Info: record {
+		## The time at which a cluster message was generated.
+		ts:       time;
+		## The name of the node that is creating the log record.
+		node: string;
+		## The role of the node, as understood by the supervisor
+		role: Supervisor::ClusterRole;
+		## A message indicating information about cluster controller operation.
+		message:  string;
+	} &log;
+
 	type Role: enum {
 		NONE,
 		LOGGER,
@@ -24,10 +42,7 @@ export {
 		# IP address of system
 		host: addr;
 		# Port where Broker is listening
-		listen_port: port;
-		# True if instance will connect to controller, not vice versa
-		# XXX for now assume controller -> instance
-	        # outbound: bool;
+		listen_port: port &optional; # XXX not needed if agents to connect to controller
 	};
 
 	# State that a Cluster Node can be in. State changes trigger an

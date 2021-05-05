@@ -4,8 +4,8 @@
 
 event Broker::peer_added(peer: Broker::EndpointInfo, msg: string)
 	{
-	# This does not (cannot?) verify that the new peer is in fact
-	# a controller, so we might send this redundantly.
+	# This does not (cannot?) immediately verify that the new peer
+	# is in fact a controller, so we might send this redundantly.
 	# Controllers handle the hello event accordingly.
 
 	local epi = ClusterAgent::endpoint_info();

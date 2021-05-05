@@ -35,12 +35,12 @@ export {
 	# Report operational error.
 	global ClusterAgent::notify_error: event(
 	    instance: string, msg: string,
-	    n: ClusterController::Types::Node &optional);
+	    n: ClusterController::Types::Node); # XXX make node optional
 
 	# Report informational message.
 	global ClusterAgent::notify_log: event(
 	    instance: string, msg: string,
-	    n: ClusterController::Types::Node &optional);
+	    n: ClusterController::Types::Node); # XXX make node optional
 }
 
 

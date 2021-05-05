@@ -1,3 +1,5 @@
+@load base/frameworks/cluster/controller/types
+
 module ClusterAgent;
 
 export {
@@ -22,8 +24,19 @@ export {
 	# suffixed with "/<name>" (see above):
 	const topic_prefix = "zeek/cluster-control/agent" &redef;
 
-        global endpoint_info: function(): Broker::EndpointInfo;
+	# Returns the effective network endpoint information for this
+	# agent.
+	global instance: function(): ClusterController::Types::Instance;
+	global endpoint_info: function(): Broker::EndpointInfo;
 }
+
+function instance(): ClusterController::Types::Instance
+	{
+	local epi = endpoint_info();
+	return ClusterController::Types::Instance($name=epi$id,
+		$host=to_addr(epi$network$address),
+		$listen_port=epi$network$bound_port);
+	}
 
 function endpoint_info(): Broker::EndpointInfo
 	{

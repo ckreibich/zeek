@@ -18,14 +18,18 @@ export {
 	const default_port = 2150/tcp &redef;
 
 	# A more aggressive default retry interval (vs default 30s)
-	const agent_connect_retry = 1sec &redef;
+	const connect_retry = 1sec &redef;
 
 	# The controller listens for messages on this topic:
 	const topic = "zeek/cluster-control/controller" &redef;
 
-	const agents = vector(ClusterAgent::endpoint_info()) &redef;
+	# The set of agents to interact with. When this is non-empty
+	# at startup, the controller contacts the agents; when it is
+	# empty, it waits for agents to connect.
+	const instances: table[string] of ClusterController::Types::Instance = { } &redef;
 
-        global network_info: function(): Broker::NetworkInfo;
+	# Returns the effective network information for this controller.
+	global network_info: function(): Broker::NetworkInfo;
 }
 
 function network_info(): Broker::NetworkInfo
