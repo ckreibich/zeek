@@ -3,7 +3,8 @@ event zeek_init()
 	if ( ! Supervisor::is_supervisor() )
 		return;
 
-	local sn = Supervisor::NodeConfig($name=ClusterController::name,
+	local epi = ClusterController::endpoint_info();
+	local sn = Supervisor::NodeConfig($name=epi$id,
 	    $scripts=vector("base/frameworks/cluster/controller/runtime.zeek"));
 
 	if ( ClusterController::stdout_file != "" )

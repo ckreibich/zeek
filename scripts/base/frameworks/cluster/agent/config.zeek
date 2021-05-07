@@ -4,8 +4,8 @@ module ClusterAgent;
 
 export {
 	# The name this agent uses to represent the cluster instance
-        # it manages. When the environment variable isn't set, this
-	# falls back to gethostname().
+        # it manages. When the environment variable isn't set and there's,
+	# no redef, this falls back to gethostname().
 	const name = getenv("ZEEK_AGENT_NAME") &redef;
 
 	# Agent stdout/stderr log files to produce in Zeek's working
@@ -23,6 +23,12 @@ export {
 	# The agent communicates under to following topic prefix,
 	# suffixed with "/<name>" (see above):
 	const topic_prefix = "zeek/cluster-control/agent" &redef;
+
+	# The coordinates of the controller. When defined, it means
+	# agents peer with (connect to) the controller; otherwise the
+	# controller knows all agents and peers with them.
+	const controller: Broker::NetworkInfo = [
+		$address="0.0.0.0", $bound_port=0/unknown] &redef;
 
 	# Returns the effective network endpoint information for this
 	# agent.
@@ -46,7 +52,7 @@ function endpoint_info(): Broker::EndpointInfo
 	if ( ClusterAgent::name != "" )
 		epi$id = ClusterAgent::name;
 	else
-		epi$id = gethostname();
+		epi$id = fmt("agent-%s", gethostname());
 
 	if ( ClusterAgent::listen_addr != "" )
 		network$address = ClusterAgent::listen_addr;

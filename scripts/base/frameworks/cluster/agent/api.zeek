@@ -62,22 +62,7 @@ function set_nodes(nodes: set[ClusterController::Types::Node]):
 		if ( node?$cpu_affinity )
 			snc$cpu_affinity = node$cpu_affinity;
 
-		switch ( node$role )
-			{
-			case ClusterController::Types::LOGGER:
-				cle$role = Supervisor::LOGGER;
-				break;
-			case ClusterController::Types::MANAGER:
-				cle$role = Supervisor::MANAGER;
-				break;
-			case ClusterController::Types::PROXY:
-				cle$role = Supervisor::PROXY;
-				break;
-			case ClusterController::Types::WORKER:
-				cle$role = Supervisor::WORKER;
-				break;
-			}
-		}
-
+		cle$role = node$role;
 		cluster[node$name] = cle;
+		}
 	}

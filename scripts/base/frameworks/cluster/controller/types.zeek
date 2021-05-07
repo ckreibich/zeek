@@ -1,30 +1,10 @@
 module ClusterController::Types;
 
 export {
-	## The cluster logging stream identifier.
-	redef enum Log::ID += { LOG };
-
-	## A default logging policy hook for the stream.
-	global log_policy: Log::PolicyHook;
-
-	## The record type which contains the column fields of the cluster log.
-	type Info: record {
-		## The time at which a cluster message was generated.
-		ts:       time;
-		## The name of the node that is creating the log record.
-		node: string;
-		## The role of the node, as understood by the supervisor
-		role: Supervisor::ClusterRole;
-		## A message indicating information about cluster controller operation.
-		message:  string;
-	} &log;
-
 	type Role: enum {
 		NONE,
-		LOGGER,
-		MANAGER,
-		PROXY,
-		WORKER,
+		AGENT,
+		CONTROLLER,
 	};
 
 	# A Zeek-side option with value.
@@ -59,7 +39,7 @@ export {
 	type Node: record {
 		name: string;    # Unique, human-readable instance name
 		instance: string; # Name of instance where node is to run
-		role: Role;     # Role of the node.
+		role: Supervisor::ClusterRole;     # Role of the node.
 		state: State;   # Desired, or current, run state.
 		scripts: vector of string;     # Additional Zeek scripts for node
 		options: set[Option];    # Zeek options for node

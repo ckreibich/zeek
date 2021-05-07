@@ -13,8 +13,6 @@ export {
 		MANAGER,
 		PROXY,
 		WORKER,
-		AGENT,
-		CONTROLLER,
 	};
 
 	## Describes configuration of a supervised-node within Zeek's Cluster

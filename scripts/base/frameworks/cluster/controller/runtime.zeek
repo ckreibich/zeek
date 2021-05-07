@@ -1,6 +1,9 @@
 @load base/frameworks/broker
 @load base/frameworks/cluster/controller/api
 @load base/frameworks/cluster/agent
+@load base/frameworks/cluster/controller/log
+
+redef ClusterController::role = ClusterController::Types::CONTROLLER;
 
 event zeek_init()
 	{
@@ -35,6 +38,8 @@ event zeek_init()
 
 	Broker::subscribe(ClusterAgent::topic_prefix);
 	Broker::subscribe(ClusterController::topic);
+
+	ClusterController::Log::info("controller is live");
 	}
 
 event ClusterAgent::notify_agent_hello(instance: string, host: addr, api_version: count)
@@ -43,6 +48,7 @@ event ClusterAgent::notify_agent_hello(instance: string, host: addr, api_version
 	# it.
 	#
 	# XXX protection against rogue agents?
+	ClusterController::Log::info("hello agent!");
 
 	if ( instance in ClusterController::instances )
 		{
