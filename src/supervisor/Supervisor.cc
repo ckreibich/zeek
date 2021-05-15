@@ -1429,10 +1429,6 @@ static ValPtr supervisor_role_to_cluster_node_type(BifEnum::Supervisor::ClusterR
 		return node_type->GetEnumVal(node_type->Lookup("Cluster", "PROXY"));
 	case BifEnum::Supervisor::WORKER:
 		return node_type->GetEnumVal(node_type->Lookup("Cluster", "WORKER"));
-	case BifEnum::Supervisor::AGENT:
-		return node_type->GetEnumVal(node_type->Lookup("Cluster", "AGENT"));
-	case BifEnum::Supervisor::CONTROLLER:
-		return node_type->GetEnumVal(node_type->Lookup("Cluster", "CONTROLLER"));
 	default:
 		return node_type->GetEnumVal(node_type->Lookup("Cluster", "NONE"));
 	}
