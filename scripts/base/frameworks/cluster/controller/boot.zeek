@@ -1,6 +1,6 @@
 event zeek_init()
 	{
-	if ( ! Supervisor::is_supervisor() )
+	if ( ! Supervisor::is_supervisor() || ! ClusterController::enable )
 		return;
 
 	local epi = ClusterController::endpoint_info();
@@ -11,6 +11,8 @@ event zeek_init()
 		sn$stdout_file = ClusterController::stdout_file;
 	if ( ClusterController::stderr_file != "" )
 		sn$stderr_file = ClusterController::stderr_file;
+
+	sn$env["ZEEK_CLUSTER_NODE"] = "CONTROLLER";
 
 	local res = Supervisor::create(sn);
 

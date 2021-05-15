@@ -532,7 +532,18 @@ SetupResult setup(int argc, char** argv, Options* zopts)
 	add_essential_input_file("base/init-frameworks-and-bifs.zeek");
 
 	if ( ! options.bare_mode )
-		add_input_file("base/init-default.zeek");
+		{
+		// The supervisor need only load a limited set of
+		// scripts since it won't be doing traffic processing.
+		// The same goes for nodes created by it that aren't
+		// part of the data cluster -- those establish an
+		// environment variable ZEEK_CLUSTER_NODE that spells
+		// out what they are (controller, agent, ...).
+		if ( options.supervisor_mode || getenv("ZEEK_CLUSTER_NODE") )
+			add_input_file("base/init-supervisor.zeek");
+		else
+			add_input_file("base/init-default.zeek");
+		}
 
 	add_input_file("builtin-plugins/__preload__.zeek");
 	add_input_file("builtin-plugins/__load__.zeek");

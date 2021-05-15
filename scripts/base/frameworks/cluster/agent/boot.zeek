@@ -1,6 +1,6 @@
 event zeek_init()
 	{
-	if ( ! Supervisor::is_supervisor() )
+	if ( ! Supervisor::is_supervisor() || ! ClusterAgent::enable )
 		return;
 
 	local epi = ClusterAgent::endpoint_info();
@@ -11,6 +11,8 @@ event zeek_init()
 		sn$stdout_file = epi$id + "." + ClusterAgent::stdout_file_suffix;
 	if ( ClusterAgent::stderr_file_suffix != "" )
 		sn$stderr_file = epi$id + "." + ClusterAgent::stderr_file_suffix;
+
+	sn$env["ZEEK_CLUSTER_NODE"] = "AGENT";
 
 	local res = Supervisor::create(sn);
 

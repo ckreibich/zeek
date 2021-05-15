@@ -3,9 +3,12 @@
 module ClusterAgent;
 
 export {
+	# Whether to run an agent in this installation.
+	const enable = F &redef;
+
 	# The name this agent uses to represent the cluster instance
         # it manages. When the environment variable isn't set and there's,
-	# no redef, this falls back to gethostname().
+	# no redef, this falls back to "agent-<hostname>".
 	const name = getenv("ZEEK_AGENT_NAME") &redef;
 
 	# Agent stdout/stderr log files to produce in Zeek's working

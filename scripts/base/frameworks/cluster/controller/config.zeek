@@ -3,9 +3,12 @@
 module ClusterController;
 
 export {
+	# Whether to run a controller in this installation.
+	const enable = F &redef;
+
 	# The name of this controller in the cluster.
 	# Without the environment variable and no redef, this
-	# falls back to gethostname().
+	# falls back to "controller-<hostname>".
 	const name = getenv("ZEEK_CONTROLLER_NAME") &redef;
 
 	# Controller stdout/stderr log files to produce in Zeek's
