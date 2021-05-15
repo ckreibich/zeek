@@ -34,18 +34,28 @@ export {
 		## The name of the supervised node.  These are unique within a given
 		## supervised process tree and typically human-readable.
 		name: string;
+
 		## The interface name from which the node will read/analyze packets.
 		interface: string &optional;
+
 		## The working directory that the node should use.
 		directory: string &optional;
+
 		## The filename/path to which the node's stdout will be redirected.
 		stdout_file: string &optional;
+
 		## The filename/path to which the node's stderr will be redirected.
 		stderr_file: string &optional;
-		## Additional script filenames/paths that the node should load.
-		scripts: vector of string &default = vector();
+
 		## A cpu/core number to which the node will try to pin itself.
 		cpu_affinity: int &optional;
+
+		## Additional script filenames/paths that the node should load.
+		scripts: vector of string &default = vector();
+
+		## Environment variables to define in the supervised node.
+		env: table[string] of string &default=table();
+
 		## The Cluster Layout definition.  Each node in the Cluster Framework
 		## knows about the full, static cluster topology to which it belongs.
 		## Entries use node names for keys.  The Supervisor framework will
