@@ -17,8 +17,10 @@ export {
 	const stdout_file_suffix = "agent.stdout" &redef;
 	const stderr_file_suffix = "agent.stderr" &redef;
 
-	const listen_addr = getenv("ZEEK_AGENT_ADDR") &redef;
-	const default_addr = 127.0.0.1 &redef;
+	# The address and port the agent listens on. When
+	# undefined, falls back to configurable default values.
+	const listen_address = getenv("ZEEK_AGENT_ADDR") &redef;
+	const default_address = Broker::default_listen_address &redef;
 
 	const listen_port = getenv("ZEEK_AGENT_PORT") &redef;
 	const default_port = 2151/tcp &redef;
@@ -57,10 +59,10 @@ function endpoint_info(): Broker::EndpointInfo
 	else
 		epi$id = fmt("agent-%s", gethostname());
 
-	if ( ClusterAgent::listen_addr != "" )
-		network$address = ClusterAgent::listen_addr;
+	if ( ClusterAgent::listen_address != "" )
+		network$address = ClusterAgent::listen_address;
 	else
-		network$address = cat(ClusterAgent::default_addr);
+		network$address = ClusterAgent::default_address;
 
 	if ( ClusterAgent::listen_port != "" )
 		network$bound_port = to_port(ClusterAgent::listen_port);

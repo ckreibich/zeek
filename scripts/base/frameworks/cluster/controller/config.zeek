@@ -16,8 +16,11 @@ export {
 	const stdout_file = "controller.stdout" &redef;
 	const stderr_file = "controller.stderr" &redef;
 
-	const listen_addr = getenv("ZEEK_CONTROLLER_ADDR") &redef;
-	const default_addr = "127.0.0.1" &redef;
+	# The address and port the controller listens on. When
+	# undefined, falls back to the default_address, which you can
+	# likewise customize.
+	const listen_address = getenv("ZEEK_CONTROLLER_ADDR") &redef;
+	const default_address = Broker::default_listen_address &redef;
 
 	const listen_port = getenv("ZEEK_CONTROLLER_PORT") &redef;
 	const default_port = 2150/tcp &redef;
@@ -44,10 +47,10 @@ function network_info(): Broker::NetworkInfo
 	{
 	local ni: Broker::NetworkInfo;
 
-	if ( ClusterController::listen_addr != "" )
-		ni$address = ClusterController::listen_addr;
+	if ( ClusterController::listen_address != "" )
+		ni$address = ClusterController::listen_address;
 	else
-		ni$address = cat(ClusterController::default_addr);
+		ni$address = ClusterController::default_address;
 
 	if ( ClusterController::listen_port != "" )
 		ni$bound_port = to_port(ClusterController::listen_port);
