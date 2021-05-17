@@ -4,6 +4,7 @@
 ##! That is, it may change in various incompatible ways without warning or
 ##! deprecation until the stable 4.0.0 release.
 
+@load base/frameworks/broker
 @load ./api
 
 module SupervisorControl;
@@ -14,6 +15,20 @@ export {
 	## publishing Supervisor requests, this is also the prefix string to use
 	## for their topic names.
 	const topic_prefix = "zeek/supervisor" &redef;
+
+	## The port the supervisor process will listen on by default.
+	const listen_port = Broker::default_port &redef;
+
+	## Default interval to retry listening on a port if it's currently in
+	## use already.  Use of the ZEEK_DEFAULT_LISTEN_RETRY environment variable
+	## (set as a number of seconds) will override this option and also
+	## any values given to :zeek:see:`Broker::listen`.
+	const listen_retry = Broker::default_listen_retry &redef;
+
+	## Default address on which to listen.
+	##
+	## .. zeek:see:: Broker::default_listen_address Broker::listen
+	const listen_address = Broker::default_listen_address &redef;
 
 	## Send a request to a remote Supervisor process to create a node.
 	##
