@@ -1,3 +1,5 @@
+@load base/frameworks/cluster/agent/config
+
 event zeek_init()
 	{
 	if ( ! Supervisor::is_supervisor() || ! ClusterAgent::enable )

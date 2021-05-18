@@ -1,3 +1,5 @@
+@load base/frameworks/cluster/controller/config
+
 event zeek_init()
 	{
 	if ( ! Supervisor::is_supervisor() || ! ClusterController::enable )

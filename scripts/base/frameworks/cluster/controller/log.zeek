@@ -1,3 +1,5 @@
+@load base/frameworks/cluster/controller/config
+
 module ClusterController::Log;
 
 export {
