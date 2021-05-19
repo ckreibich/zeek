@@ -30,6 +30,8 @@ export {
 		message:  string;
 	} &log;
 
+	global log_level = DEBUG &redef;
+
 	global info: function(message: string);
 	global warning: function(message: string);
 	global error: function(message: string);
@@ -39,6 +41,7 @@ export {
 # with full qualifications in the logs, which is too verbose.
 
 global l2s: table[Level] of string = {
+	[DEBUG] = "DEBUG",
 	[INFO] = "INFO",
 	[WARNING] = "WARNING",
 	[ERROR] = "ERROR",
@@ -49,8 +52,21 @@ global r2s: table[ClusterController::Types::Role] of string = {
 	[ClusterController::Types::CONTROLLER] = "CONTROLLER",
 };
 
+function debug(message: string)
+	{
+	if ( enum_to_int(log_level) > enum_to_int(DEBUG) )
+		return;
+
+	local node = Supervisor::node();
+	Log::write(LOG, [$ts=network_time(), $node=node$name, $level=l2s[DEBUG],
+			 $role=r2s[ClusterController::role], $message=message]);
+	}
+
 function info(message: string)
 	{
+	if ( enum_to_int(log_level) > enum_to_int(INFO) )
+		return;
+
 	local node = Supervisor::node();
 	Log::write(LOG, [$ts=network_time(), $node=node$name, $level=l2s[INFO],
 			 $role=r2s[ClusterController::role], $message=message]);
@@ -58,6 +74,9 @@ function info(message: string)
 
 function warning(message: string)
 	{
+	if ( enum_to_int(log_level) > enum_to_int(WARNING) )
+		return;
+
 	local node = Supervisor::node();
 	Log::write(LOG, [$ts=network_time(), $node=node$name, $level=l2s[WARNING],
 			 $role=r2s[ClusterController::role], $message=message]);
@@ -65,6 +84,9 @@ function warning(message: string)
 
 function error(message: string)
 	{
+	if ( enum_to_int(log_level) > enum_to_int(ERROR) )
+		return;
+
 	local node = Supervisor::node();
 	Log::write(LOG, [$ts=network_time(), $node=node$name, $level=l2s[ERROR],
 			 $role=r2s[ClusterController::role], $message=message]);

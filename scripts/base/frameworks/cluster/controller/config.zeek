@@ -33,7 +33,9 @@ export {
 
 	# The set of agents to interact with. When this is non-empty
 	# at startup, the controller contacts the agents; when it is
-	# empty, it waits for agents to connect.
+	# empty, it waits for agents to connect. They key is a name of
+	# each instance. This should match the $name member of the
+	# instance records.
 	const instances: table[string] of ClusterController::Types::Instance = { } &redef;
 
 	const role = ClusterController::Types::NONE &redef;
@@ -49,8 +51,10 @@ function network_info(): Broker::NetworkInfo
 
 	if ( ClusterController::listen_address != "" )
 		ni$address = ClusterController::listen_address;
-	else
+	else if ( ClusterController::default_address != "" )
 		ni$address = ClusterController::default_address;
+	else
+		ni$address = "127.0.0.1";
 
 	if ( ClusterController::listen_port != "" )
 		ni$bound_port = to_port(ClusterController::listen_port);

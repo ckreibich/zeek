@@ -37,7 +37,7 @@ export {
 
 	# Configuration describing a Cluster Node process.
 	type Node: record {
-		name: string;    # Unique, human-readable instance name
+		name: string;    # Unique, human-readable node name
 		instance: string; # Name of instance where node is to run
 		role: Supervisor::ClusterRole;     # Role of the node.
 		state: State;   # Desired, or current, run state.
@@ -45,23 +45,25 @@ export {
 		options: set[Option];    # Zeek options for node
 		interface: string &optional;     # Interface to sniff
 		cpu_affinity: int &optional;     # CPU/core number to pin to
-		environ: table[string] of string; # Custom environment vars
+		env: table[string] of string &default=table(); # Custom environment vars
 	};
 
 	# Data structure capturing a cluster's complete configuration.
 	type Configuration: record {
-		config_id: string &optional; # Unique ID of current config
+		config_id: string &optional; # Unique ID for this config
 		instances: set[Instance];
 		nodes: set[Node];
 	};
 
 	# Return value for APIs
 	type Result: record {
-		reqid: string;  # Request ID of operation this result refers to
-		success: bool;  # True if successful
-		data: any &optional;      # Addl data returned for successful operation
+		reqid: string;              # Request ID of operation this result refers to
+		instance: string;           # Name of associated instance (for context)
+		success: bool &default=T;   # True if successful
+		data: any &optional;        # Addl data returned for successful operation
 		error: string &default="";  # Descriptive error on failure
-		node: string &optional;   # Name of associated node (for context)
-		instance: string; # Name of associated instance (for context)
+		node: string &optional;     # Name of associated node (for context)
 	};
+
+	type ResultVec: vector of Result;
 }

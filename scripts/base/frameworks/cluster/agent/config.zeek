@@ -61,8 +61,10 @@ function endpoint_info(): Broker::EndpointInfo
 
 	if ( ClusterAgent::listen_address != "" )
 		network$address = ClusterAgent::listen_address;
-	else
+	else if ( ClusterAgent::default_address != "" )
 		network$address = ClusterAgent::default_address;
+	else
+		network$address = "127.0.0.1";
 
 	if ( ClusterAgent::listen_port != "" )
 		network$bound_port = to_port(ClusterAgent::listen_port);
