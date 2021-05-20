@@ -342,10 +342,15 @@ function parse(parser: Parser, args: vector of string): Result
 
 	# If this parser has arguments, now see whether the first of
         # any leftover arguments matches one of the defined ones.
-	if ( |res$unparsed| > 0 && res$unparsed[0] in parser$args )
+	if ( |res$unparsed| > 0 )
 		{
-		res$arg = parser$args[res$unparsed[0]];
-		res$unparsed = res$unparsed[1:];
+		if ( res$unparsed[0] in parser$args )
+			{
+			res$arg = parser$args[res$unparsed[0]];
+			res$unparsed = res$unparsed[1:];
+			}
+		else
+			opt_warning(fmt("unexpected argument '%s'", res$unparsed[0]));
 		}
 
 	return res;
