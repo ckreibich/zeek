@@ -1,0 +1,25 @@
+dist: bionic
+
+language: cpp
+
+git:
+  depth: 1
+
+install: sudo apt update && sudo apt install -y flex bison libpcap-dev libssl-dev python3 python3-dev swig zlib1g-dev
+
+jobs:
+  include:
+    - name: "AMD"
+      arch: amd64
+    - name: "PowerPC"
+      arch: ppc64le
+    - name: "ARM"
+      arch: arm64
+
+#branches:
+#  only:
+#  - master
+#  - /release\/.*/
+
+
+script: ./configure && make -j 2
