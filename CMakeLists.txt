@@ -552,7 +552,12 @@ install(DIRECTORY DESTINATION ${ZEEK_CONFIG_BTEST_TOOLS_DIR})
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zeek-config.in
                ${CMAKE_CURRENT_BINARY_DIR}/zeek-config @ONLY)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/zeek-config DESTINATION bin)
-install(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/zeekc.py DESTINATION bin RENAME zeekc)
+
+if ( ENABLE_ZEEK_CLIENT )
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/zeek-client.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/zeek-client)
+    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/zeek-client DESTINATION bin)
+endif ()
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake DESTINATION share/zeek
         USE_SOURCE_PERMISSIONS)

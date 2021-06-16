@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 import argparse
 import configparser
@@ -9,31 +9,22 @@ import subprocess
 import sys
 import uuid
 
-ZEEKC_DEFAULT_CONTROLLER = '127.0.0.1:2150'
-ZEEKC_CONTROLLER_TOPIC = 'zeek/cluster-control/controller'
+ZEEK_CLIENT_DEFAULT_CONTROLLER = '127.0.0.1:2150'
+ZEEK_CLIENT_CONTROLLER_TOPIC = 'zeek/cluster-control/controller'
+
+# Prepend the Python path of the Zeek installation. This ensures we find the
+# Zeek-bundled Broker Python bindings, if available, before any system-wide
+# ones.
+ZEEK_PYTHON_DIR = '@PY_MOD_INSTALL_DIR@'
+if os.path.isdir(ZEEK_PYTHON_DIR):
+    sys.path.insert(0, os.path.abspath(ZEEK_PYTHON_DIR))
 
 try:
     import broker
 except ImportError:
-    try:
-        res = subprocess.run(['zeek-config', '--python_dir'], capture_output=True)
-    except subprocess.SubprocessError as err:
-        print("Could not determine Zeek's Python folder via zeek-config: {}"
-              .format(err))
-        sys.exit(1)
-
-    try:
-        zeek_pydir = res.stdout.decode().strip()
-    except UnicodeError:
-        print('Cannot not decode directory "{}"'.format(res.stdout))
-        sys.exit(1)
-
-    if not os.path.isdir(zeek_pydir):
-        print('Cannot access Zeek\'s Python directory "{}"'.format(zeek_pydir))
-        sys.exit(1)
-
-    sys.path.insert(0, zeek_pydir)
-    import broker
+    print('error: zeek-client requires the Python Broker bindings.\n'
+          'Make sure your Zeek build includes them.')
+    sys.exit(1)
 
 
 # Broker's basic types aren't JSON-serializable, so patch that up:
@@ -52,21 +43,72 @@ def json_dumps(obj):
 
 # Wrapper around Broker's Event class to make it printable
 class Event(broker.zeek.Event):
+    NAME = None
+    ARG_NAMES = []
+    ARG_TYPES = []
+
+    def __init__(self, *args):
+        if len(args) != len(self.ARG_NAMES):
+            raise TypeError('event argument length mismatch: have %d, expected %d'
+                            % (len(args), len(self.ARG_NAMES)))
+        for tpl in zip(args, self.ARG_TYPES, range(len(self.ARG_TYPES))):
+            if type(tpl[0]) != tpl[1]:
+                raise TypeError('event type mismatch: argument %d is %s, should be %s'
+                                % (tpl[2]+1, type(tpl[0]), tpl[1]))
+        args = [self.NAME] + list(args)
+        super().__init__(*args)
+
+    def __getattr__(self, name):
+        try:
+            idx = self.ARG_NAMES.index(name)
+            return self.args()[idx]
+        except ValueError:
+            raise AttributeError
+
     def __str__(self):
         return self.name() + '(' + ', '.join([str(type(arg)) for arg in self.args()]) + ')'
 
+# Map from Zeek-level event names to Event classes. The make_event()
+# function uses this to instantiate the right event class given the
+# available Broker-level data.
+event_types = {}
 
-class GetInstancesResponseEvent(Event):
-    def requid(self):
-        return self.args()[0]
+def make_event_class(name, arg_names, arg_types):
 
-    def instances(self):
-        return self.args()[1]
+    res = type(name, (Event,), {})
+
+    res.NAME = name
+    res.ARG_NAMES = arg_names
+    res.ARG_TYPES = arg_types
+
+    event_types[name] = res
+
+    return res
+
+
+def make_event(args):
+    ev = broker.zeek.Event(args)
+    args = ev.args()
+
+    if ev.name() not in event_types:
+        return None
+
+    return event_types[ev.name()](*args)
+
+
+GetInstancesRequest = make_event_class(
+    'ClusterController::API::get_instances_request',
+    ('reqid',), (str,))
+
+
+GetInstancesResponse = make_event_class(
+    'ClusterController::API::get_instances_response',
+    ('reqid', 'instances'), (str, tuple))
 
 
 class Controller:
     def __init__(self, controller_host, controller_port,
-                 controller_topic=ZEEKC_CONTROLLER_TOPIC):
+                 controller_topic=ZEEK_CLIENT_CONTROLLER_TOPIC):
         self.controller_host = controller_host
         self.controller_port = controller_port
         self.controller_topic = controller_topic
@@ -89,28 +131,28 @@ class Controller:
     def publish(self, event):
         self.ep.publish(self.controller_topic, event)
 
-    def receive(self, event_class):
+    def receive(self):
         topic, data = self.sub.get()
-        return event_class(data)
+        return make_event(data)
 
 
 def cmd_instances(controller, args):
-    controller.publish(Event(
-        'ClusterController::API::get_instances_request',
-        str(uuid.uuid1())))
-    resp = controller.receive(GetInstancesResponseEvent)
+    controller.publish(GetInstancesRequest(str(uuid.uuid1())))
+    resp = controller.receive()
 
-    print(json_dumps(resp.instances()))
+    print(json_dumps(resp.instances))
+
 
 def cmd_set_config(controller, args):
     pass
 
+
 def main():
-    parser = argparse.ArgumentParser(description='A zeekc prototype')
+    parser = argparse.ArgumentParser(description='A zeek-client prototype')
     parser.add_argument('--controller', metavar='HOST:PORT',
-                        default=ZEEKC_DEFAULT_CONTROLLER,
+                        default=ZEEK_CLIENT_DEFAULT_CONTROLLER,
                         help='Address and port of the controller '
-                        '(default: {})'.format(ZEEKC_DEFAULT_CONTROLLER))
+                        '(default: {})'.format(ZEEK_CLIENT_DEFAULT_CONTROLLER))
 
     command_parser = parser.add_subparsers(
         title='commands', dest='command',
