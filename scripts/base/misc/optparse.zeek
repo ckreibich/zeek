@@ -53,7 +53,7 @@ export {
 
 function opt_warning(msg: string)
 	{
-	print(fmt("option error: %s", msg));
+	print(fmt("option warning: %s", msg));
 	}
 
 function opt_error(msg: string)
@@ -332,12 +332,20 @@ function parse(parser: Parser, args: vector of string): Result
 			}
 		}
 
-	# And another pass to see if all required options are there:
+	# Do a pass to see if all required options are there:
 	for ( name, opt in parser$opts )
 		{
 		n = opt_name(opt);
 		if ( opt$required && n !in res$opts )
 			opt_error(fmt("required option '%s' not provided", n));
+		}
+
+	# Do a pass to see if all defined options now have a value:
+	for ( n in res$opts )
+		{
+		opt = res$opts[n];
+		if ( |opt$vals| < opt$args_min )
+			opt_error(fmt("option '%s' needs at least %d arguments", opt_name(opt), opt$args_min));
 		}
 
 	# If this parser has arguments, now see whether the first of

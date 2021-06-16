@@ -61,15 +61,29 @@ function run_instances(res: Optparse::Result)
 
 function run_set_config(res: Optparse::Result)
 	{
-	print(res$unparsed);
+	local opts: Optparse::OptVec = {
+	    Optparse::Opt($name="h", $longname="help", $desc="Show help output"),
+	    Optparse::Opt($name="n", $longname="node-config", $args_label="FILE",
+	        $args_min=1, $default_vals=vector("node.cfg"),
+	        $desc="Node configuration table"),
+	};
+
+	local parser = Optparse::make_parser("zeekc set-config", opts, "Set cluster configuration.");
+	res = Optparse::parse(parser, res$unparsed);
+
+	if ( "help" in res$opts )
+		{
+		Optparse::print_parser(parser);
+		exit(0);
+		}
         }
 
 event zeek_init() {
 	local opts: Optparse::OptVec = {
 	    Optparse::Opt($name="h", $longname="help", $desc="Show help output"),
 	    Optparse::Opt($longname="controller", $args_label="HOST:PORT",
-	    $args_min=1, $default_vals=vector("127.0.0.1:2150"),
-	    $desc="IP addresss and port of the controller")
+	        $args_min=1, $default_vals=vector("127.0.0.1:2150"),
+	        $desc="IP addresss and port of the controller")
 	};
 
 	local args: Optparse::ArgVec = {
