@@ -35,6 +35,11 @@ event ClusterAgent::API::notify_agent_hello(instance: string, host: addr, api_ve
 			delete ClusterController::instances[instance];
 			}
 
+		# Update the instance name in the pointed-to record, in case it
+		# was previously named otherwise. Not being too picky here allows
+		# the user some leeway in spelling out the original config.
+		ClusterController::instances[instance]$name = instance;
+
 		return;
 		}
 
@@ -53,7 +58,8 @@ event ClusterAgent::API::notify_agent_hello(instance: string, host: addr, api_ve
 
 
 event ClusterAgent::API::notify_change(instance: string, n: ClusterController::Types::Node,
-    old: ClusterController::Types::State, new: ClusterController::Types::State)
+				       old: ClusterController::Types::State,
+				       new: ClusterController::Types::State)
 	{
 	}
 
@@ -132,27 +138,30 @@ event ClusterController::API::set_configuration_request(reqid: string, config: C
 
 	# Compare new configuration to the current one and send updates
 	# to the instances as needed.
-	for ( inst in config$instances )
+	if ( config?$instances )
 		{
-		if ( inst$name !in ClusterController::instances )
+		# XXX properly handle instance update: connect to new instances provided
+		# when they are listening, accept connections from new instances that are
+		# not
+		for ( inst in config$instances )
 			{
-			# We treat this as an error. The agent/
-                        # controller relationships and identities are
-                        # currently predefined, so an instance that's
-                        # not known at this point cannot be reasoned
-                        # about.
-			local res = ClusterController::Types::Result($reqid=reqid, $instance=inst$name);
-			res$error = fmt("instance %s is unknown, skipping", inst$name);
-			req$results += res;
-			next;
+			if ( inst$name !in ClusterController::instances )
+				{
+				local res = ClusterController::Types::Result($reqid=reqid, $instance=inst$name);
+				res$error = fmt("instance %s is unknown, skipping", inst$name);
+				req$results += res;
+				}
 			}
+		}
 
+	for ( name in ClusterController::instances )
+		{
 		# All nodes that are part of the instance we're considering in this
 		# loop iteration:
 		local inst_nodes: set[ClusterController::Types::Node];
 
 		for ( node in config$nodes )
-			if ( node$instance == inst$name )
+			if ( node$instance == name )
 				add inst_nodes[node];
 
 		# If the request sets any nodes for this instance,
@@ -164,11 +173,11 @@ event ClusterController::API::set_configuration_request(reqid: string, config: C
 		areq$parent_id = reqid;
 		req$set_nodes_state$requests += areq;
 
-		local agent_topic = ClusterAgent::topic_prefix + "/" + inst$name;
+		local agent_topic = ClusterAgent::topic_prefix + "/" + name;
 
 		# Send set_nodes to this specific instance
 		Broker::publish(agent_topic, ClusterAgent::API::set_nodes_request,
-				areq$id, inst_nodes);
+		                areq$id, inst_nodes);
 
 		for ( node in inst_nodes )
 			node_map_new[node$name] = node;

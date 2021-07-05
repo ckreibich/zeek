@@ -7,7 +7,7 @@ event zeek_init()
 
 	local epi = ClusterAgent::endpoint_info();
 	local sn = Supervisor::NodeConfig($name=epi$id,
-		$scripts=vector("base/frameworks/cluster/agent/runtime.zeek"));
+		$scripts=vector("base/frameworks/cluster/agent/main.zeek"));
 
 	if ( ClusterAgent::stdout_file_suffix != "" )
 		sn$stdout_file = epi$id + "." + ClusterAgent::stdout_file_suffix;

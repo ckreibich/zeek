@@ -7,7 +7,7 @@ event zeek_init()
 
 	local epi = ClusterController::endpoint_info();
 	local sn = Supervisor::NodeConfig($name=epi$id,
-	    $scripts=vector("base/frameworks/cluster/controller/runtime.zeek"));
+	    $scripts=vector("base/frameworks/cluster/controller/main.zeek"));
 
 	if ( ClusterController::stdout_file != "" )
 		sn$stdout_file = ClusterController::stdout_file;
