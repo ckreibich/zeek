@@ -173,9 +173,9 @@ event zeek_init()
 	# be "". In that case, we substitute loopback.
 	local supervisor_addr = SupervisorControl::listen_address;
 	if ( |supervisor_addr| == 0 )
-		supervisor_addr = 127.0.0.1
+		supervisor_addr = "127.0.0.1";
 
-	Broker::peer(cat(supervisor_addr),
+	Broker::peer(supervisor_addr,
 	             SupervisorControl::listen_port,
 		     SupervisorControl::listen_retry);
 
