@@ -537,9 +537,9 @@ SetupResult setup(int argc, char** argv, Options* zopts)
 		// scripts since it won't be doing traffic processing.
 		// The same goes for nodes created by it that aren't
 		// part of the data cluster -- those establish an
-		// environment variable ZEEK_CLUSTER_NODE that spells
+		// environment variable ZEEK_CLUSTER_MGMT_NODE that spells
 		// out what they are (controller, agent, ...).
-		if ( options.supervisor_mode || getenv("ZEEK_CLUSTER_NODE") )
+		if ( options.supervisor_mode || getenv("ZEEK_CLUSTER_MGMT_NODE") )
 			add_input_file("base/init-supervisor.zeek");
 		else
 			add_input_file("base/init-default.zeek");

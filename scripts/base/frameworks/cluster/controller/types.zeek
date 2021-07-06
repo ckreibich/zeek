@@ -42,6 +42,7 @@ export {
 	type Node: record {
 		name: string;                        # Cluster-unique, human-readable node name
 		instance: string;                    # Name of instance where node is to run
+		p: port;                             # Port on which this node will listen
 		role: Supervisor::ClusterRole;       # Role of the node.
 		state: State;                        # Desired, or current, run state.
 		scripts: vector of string &optional; # Additional Zeek scripts for node

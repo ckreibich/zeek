@@ -14,7 +14,7 @@ event zeek_init()
 	if ( ClusterAgent::stderr_file_suffix != "" )
 		sn$stderr_file = epi$id + "." + ClusterAgent::stderr_file_suffix;
 
-	sn$env["ZEEK_CLUSTER_NODE"] = "AGENT";
+	sn$env["ZEEK_CLUSTER_MGMT_NODE"] = "AGENT";
 
 	local res = Supervisor::create(sn);
 

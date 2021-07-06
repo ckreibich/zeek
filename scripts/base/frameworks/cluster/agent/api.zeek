@@ -8,10 +8,10 @@ export {
 
 	# Agent API events
 
-	global set_nodes_request: event(reqid: string,
-	    nodes: set[ClusterController::Types::Node]);
-	global set_nodes_response: event(reqid: string,
-	    result: ClusterController::Types::ResultVec);
+	global set_configuration_request: event(reqid: string,
+	    config: ClusterController::Types::Configuration);
+	global set_configuration_response: event(reqid: string,
+	    result: ClusterController::Types::Result);
 
 	# Notification events, agent -> controller
 
@@ -26,10 +26,8 @@ export {
 	    new: ClusterController::Types::State);
 
 	# Report operational error.
-	global notify_error: event(instance: string, msg: string,
-	    n: ClusterController::Types::Node); # XXX make node optional
+	global notify_error: event(instance: string, msg: string, node: string &default="");
 
 	# Report informational message.
-	global notify_log: event(instance: string, msg: string,
-	    n: ClusterController::Types::Node); # XXX make node optional
+	global notify_log: event(instance: string, msg: string, node: string &default="");
 }

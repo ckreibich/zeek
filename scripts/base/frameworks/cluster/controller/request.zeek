@@ -8,9 +8,22 @@ export {
 		parent_id: string &optional;
 	};
 
+	# API-specific state. XXX we may be able to generalize after this
+	# has settled a bit more.
+
+	# State specific to the set_configuration request/response events
+	type SetConfigurationState: record {
+		requests: vector of Request &default=vector();
+	};
+
 	# State specific to the set_nodes request/response events
 	type SetNodesState: record {
 		requests: vector of Request &default=vector();
+	};
+
+	# State specific to supervisor interactions
+	type SupervisorState: record {
+		node: string;
 	};
 
 	# The redef is a workaround so we can use the Request type
@@ -19,7 +32,9 @@ export {
 		results: ClusterController::Types::ResultVec &default=vector();
 		finished: bool &default=F;
 
+		set_configuration_state: SetConfigurationState &optional;
 		set_nodes_state: SetNodesState &optional;
+		supervisor_state: SupervisorState &optional;
 	};
 
 	global null_req = Request($id="", $finished=T);
@@ -31,6 +46,7 @@ export {
 	global is_null: function(request: Request): bool;
 }
 
+# XXX this needs a mechanism for expiring stale requests
 global requests: table[string] of Request;
 
 function create(reqid: string): Request

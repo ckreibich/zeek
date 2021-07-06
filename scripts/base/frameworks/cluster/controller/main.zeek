@@ -9,9 +9,6 @@
 
 redef ClusterController::role = ClusterController::Types::CONTROLLER;
 
-global node_map: table[string] of ClusterController::Types::Node
-    &broker_allow_complex_type &backend=Broker::SQLITE;
-
 event ClusterAgent::API::notify_agent_hello(instance: string, host: addr, api_version: count)
 	{
 	# See if we already know about this agent; if not, register
@@ -52,8 +49,6 @@ event ClusterAgent::API::notify_agent_hello(instance: string, host: addr, api_ve
 
 	ClusterController::instances[instance] = ClusterController::Types::Instance($name=instance, $host=host);
 	ClusterController::Log::info(fmt("instance %s/%s has checked in", instance, host));
-
-	print("WAHOO!");
 	}
 
 
@@ -61,43 +56,55 @@ event ClusterAgent::API::notify_change(instance: string, n: ClusterController::T
 				       old: ClusterController::Types::State,
 				       new: ClusterController::Types::State)
 	{
+	# XXX TODO
 	}
 
-event ClusterAgent::notify_error(instance: string, msg: string,
-    n: ClusterController::Types::Node)
+event ClusterAgent::API::notify_error(instance: string, msg: string, node: string)
 	{
+	# XXX TODO
 	}
 
-event ClusterAgent::notify_log(instance: string, msg: string,
-    n: ClusterController::Types::Node)
+event ClusterAgent::API::notify_log(instance: string, msg: string, node: string)
 	{
+	# XXX TODO
 	}
 
-event ClusterAgent::API::set_nodes_response(reqid: string, results: ClusterController::Types::ResultVec)
+event ClusterAgent::API::set_configuration_response(reqid: string, result: ClusterController::Types::Result)
 	{
+	ClusterController::Log::info(fmt("rx ClusterAgent::API::set_configuration_response %s", reqid));
+
+	# Retrieve state for the request we just got a response to
 	local areq = ClusterController::Request::lookup(reqid);
 	if ( ClusterController::Request::is_null(areq) )
 		return;
 
-	areq$results = results;
+	# Record the result and mark the request as done. This also
+	# marks the request as done in the parent-level request, since
+	# these records are stored by reference.
+	areq$results[0] = result; # We only have a single result here atm
 	areq$finished = T;
 
+	# Update the original request from the client:
 	local req = ClusterController::Request::lookup(areq$parent_id);
 	if ( ClusterController::Request::is_null(req) )
 		return;
 
-	for ( i in req$set_nodes_state$requests )
-		if ( ! req$set_nodes_state$requests[i]$finished )
+	# If there are any requests to the agents still unfinished,
+	# we're not done yet.
+	for ( i in req$set_configuration_state$requests )
+ 		if ( ! req$set_configuration_state$requests[i]$finished )
 			return;
 
-	# All set_nodes requests to instances are done, so respond
+	# All set_configuration requests to instances are done, so respond
         # back to client. We need to compose the result, aggregating
         # the results we got from the requests to the agents. In the
         # end we have one Result per instance requested in the
         # original set_configuration_request.
-	for ( i in req$set_nodes_state$requests )
+	#
+	# XXX we can likely generalize result aggregation in the request module.
+	for ( i in req$set_configuration_state$requests )
 		{
-		local r = req$set_nodes_state$requests[i];
+		local r = req$set_configuration_state$requests[i];
 
 		local success = T;
 		local errors: string_vec;
@@ -125,16 +132,17 @@ event ClusterAgent::API::set_nodes_response(reqid: string, results: ClusterContr
 		ClusterController::Request::finish(r$id);
 		}
 
+	ClusterController::Log::info(fmt("tx ClusterController::API::set_configuration_response %s", req$id));
 	event ClusterController::API::set_configuration_response(req$id, req$results);
 	ClusterController::Request::finish(req$id);
 	}
 
 event ClusterController::API::set_configuration_request(reqid: string, config: ClusterController::Types::Configuration)
 	{
-	local req = ClusterController::Request::create(reqid);
-	req$set_nodes_state = ClusterController::Request::SetNodesState();
+	ClusterController::Log::info(fmt("rx ClusterController::API::set_configuration_request %s", reqid));
 
-	local node_map_new: table[string] of ClusterController::Types::Node;
+	local req = ClusterController::Request::create(reqid);
+	req$set_configuration_state = ClusterController::Request::SetConfigurationState();
 
 	# Compare new configuration to the current one and send updates
 	# to the instances as needed.
@@ -154,46 +162,48 @@ event ClusterController::API::set_configuration_request(reqid: string, config: C
 			}
 		}
 
+	# XXX validate the configuration:
+	# - Are node instances among defined instances?
+	# - Are all names unique?
+	# - Are any node options understood?
+	# - Do node types with optional fields have required values?
+	# ...
+
+	# Transmit the configuration on to the agents. They need to be aware of
+	# each other's location and nodes, so the data cluster nodes can connect
+	# (for example, so a worker on instance 1 can connect to a logger on
+	# instance 2).
 	for ( name in ClusterController::instances )
 		{
-		# All nodes that are part of the instance we're considering in this
-		# loop iteration:
-		local inst_nodes: set[ClusterController::Types::Node];
-
-		for ( node in config$nodes )
-			if ( node$instance == name )
-				add inst_nodes[node];
-
-		# If the request sets any nodes for this instance,
-		# send off the event to its agent.
-		if ( |inst_nodes| == 0 )
-			next;
-
+		local agent_topic = ClusterAgent::topic_prefix + "/" + name;
 		local areq = ClusterController::Request::create();
 		areq$parent_id = reqid;
-		req$set_nodes_state$requests += areq;
 
-		local agent_topic = ClusterAgent::topic_prefix + "/" + name;
+		# We track the requests sent off to each agent. As the
+		# responses come in, we can check them off as completed,
+		# and once all are, we respond back to the client.
+		req$set_configuration_state$requests += areq;
 
-		# Send set_nodes to this specific instance
-		Broker::publish(agent_topic, ClusterAgent::API::set_nodes_request,
-		                areq$id, inst_nodes);
-
-		for ( node in inst_nodes )
-			node_map_new[node$name] = node;
+		# XXX could also broadcast just once on the agent prefix, but
+		# explicit request/response pairs for each agent seems cleaner.
+		ClusterController::Log::info(fmt("tx ClusterAgent::API::set_configuration_request %s to %s",
+		                                 areq$id, name));
+		Broker::publish(agent_topic, ClusterAgent::API::set_configuration_request, areq$id, config);
 		}
 
-	# Update our persisted node map:
-	node_map = node_map_new;
+	# Response event gets sent via the agents' reponse event.
 	}
 
 event ClusterController::API::get_instances_request(reqid: string)
 	{
+	ClusterController::Log::info(fmt("rx ClusterController::API::set_instances_request %s", reqid));
+
 	local insts: vector of ClusterController::Types::Instance;
 
 	for ( i in ClusterController::instances )
 		insts += ClusterController::instances[i];
 
+	ClusterController::Log::info(fmt("tx ClusterController::API::get_instances_response %s", reqid));
 	event ClusterController::API::get_instances_response(reqid, insts);
 	}
 
@@ -215,7 +225,8 @@ event zeek_init()
 
 	if ( |ClusterController::instances| > 0 )
 		{
-		# We peer with the agents.
+		# We peer with the agents -- otherwise, the agents peer
+		# with (i.e., connect to) us.
 		for ( i in ClusterController::instances )
 			{
 			local inst = ClusterController::instances[i];
@@ -227,7 +238,7 @@ event zeek_init()
 				}
 
 			Broker::peer(cat(inst$host), inst$listen_port,
-				     ClusterController::connect_retry);
+			             ClusterController::connect_retry);
 			}
 		}
 

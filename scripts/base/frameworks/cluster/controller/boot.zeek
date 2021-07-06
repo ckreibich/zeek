@@ -14,7 +14,8 @@ event zeek_init()
 	if ( ClusterController::stderr_file != "" )
 		sn$stderr_file = ClusterController::stderr_file;
 
-	sn$env["ZEEK_CLUSTER_NODE"] = "CONTROLLER";
+	# This helps Zeek run controller and agent with a minimal set of scripts.
+	sn$env["ZEEK_CLUSTER_MGMT_NODE"] = "CONTROLLER";
 
 	local res = Supervisor::create(sn);
 

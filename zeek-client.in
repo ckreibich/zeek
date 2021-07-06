@@ -230,8 +230,8 @@ class Controller:
                     return None, 'status change: {}'.format(status)
 
 
-class NodeRole(enum.Enum):
-    # This mirrors the Supervisor::ClusterRole enum in Zeek
+class Role(enum.Enum):
+    """Equivalent of Supervisor::ClusterRole enum in Zeek"""
     NONE = 0
     LOGGER = 1
     MANAGER = 2
@@ -239,8 +239,8 @@ class NodeRole(enum.Enum):
     WORKER = 4
 
 
-class NodeState(enum.Enum):
-    # This mirrors the ClusterController::Types::State enum in Zeek
+class State(enum.Enum):
+    """Equivalent of ClusterController::Types::State enum in Zeek"""
     RUNNING = 0
     STOPPED = 1
     FAILED = 2
@@ -258,8 +258,25 @@ class BrokerType:
         """
         return None
 
+    def from_broker(broker_data):
+        """Returns an instance of the type given Broker data."""
+        return None
 
-class InstanceConfig(BrokerType):
+
+class Option(BrokerType):
+    """Equivalent of ClusterController::Types::Option."""
+
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+    def to_broker(self):
+        return (self.name, self.value)
+
+
+class Instance(BrokerType):
+    """Equivalent of ClusterController::Types::Instance."""
+
     def __init__(self, name, addr, port):
         self.name = name
         self.addr = addr
@@ -270,7 +287,8 @@ class InstanceConfig(BrokerType):
                 broker.Port(int(self.port), broker.Port.TCP))
 
 
-class NodeConfig(BrokerType):
+class Node(BrokerType):
+    """Equivalent of ClusterController::Types::Node."""
 
     class HashableDict(dict):
         """Ad-hoc dict adaptation to work around the fact that we cannot readily put a
@@ -279,11 +297,12 @@ class NodeConfig(BrokerType):
         def __hash__(self):
             return hash(frozenset(self))
 
-    def __init__(self, name, instance, role, state=NodeState.RUNNING,
+    def __init__(self, name, instance, role, port, state=State.RUNNING,
                  scripts=None, options=None, interface=None, cpu_affinity=None,
                  env=None):
         self.name = name
         self.instance = instance
+        self.port = port
         self.role = role
         self.state = state
         self.scripts = scripts
@@ -297,9 +316,10 @@ class NodeConfig(BrokerType):
         # sets to represent Broker sets, but Python sets cannot hash members
         # that have/are dicts. We work around this with a hashable dictionary
         # that we create only here, so won't modify after hashing.
-        hdenv = NodeConfig.HashableDict(self.env.items())
+        hdenv = Node.HashableDict(self.env.items())
 
         return (self.name, self.instance,
+                broker.Port(self.port, broker.Port.TCP),
                 # XXX enums are a bit tricky, per the below -- we should cover
                 # these in the Broker Python binding docs. (Same for None vs
                 # Broker's nil.)
@@ -325,6 +345,7 @@ class NodeConfig(BrokerType):
             return None
 
         instance = get(str, 'instance')
+        port = get(int, 'port')
         role = get(str, 'role', 'type')
         state = get(str, 'state') or 'RUNNING'
         interface = get(str, 'interface')
@@ -333,18 +354,22 @@ class NodeConfig(BrokerType):
         # Validate the specified values
         if not instance:
             raise ValueError('node "%s" requires an instance', name)
-        if role is None or role.upper() not in NodeRole.__members__.keys():
+        if role is None or role.upper() not in Role.__members__.keys():
             raise ValueError('node "%s" role "%s" is invalid', name, role)
-        if state is None or state.upper() not in NodeState.__members__.keys():
+        if port is None or port < 1 or port > 65535:
+            raise ValueError('node "%s" port "%s" is invalid', name, port)
+        if state is None or state.upper() not in State.__members__.keys():
             raise ValueError('node "%s" state "%s" is invalid', name, state)
 
-        return NodeConfig(name=name, instance=instance,
-                          role=NodeRole.__members__.get(role.upper()),
-                          state=NodeState.__members__.get(state.upper()),
-                          interface=interface)
+        return Node(name=name, instance=instance, port=port,
+                    role=Role.__members__.get(role.upper()),
+                    state=State.__members__.get(state.upper()),
+                    interface=interface)
 
 
-class ClusterConfig:
+class Configuration:
+    """Equivalent of ClusterController::Types::Configuration."""
+
     def __init__(self):
         self.id = make_uuid()
         self.instances = []
@@ -361,6 +386,21 @@ class ClusterConfig:
 
         return (self.id, instances, nodes)
 
+
+class Result:
+    """Equivalent of ClusterController::Types::Result."""
+
+    def __init__(self, reqid, instance, success=True, data=None, error=None, node=None):
+        self.reqid = reqid
+        self.instance = instance
+        self.success = success
+        self.data = data
+        self.error = error
+        self.node = node
+
+    @staticmethod
+    def from_broker(broker_data):
+        return Result(*broker_data)
 
 # Command handlers
 
@@ -400,7 +440,7 @@ def cmd_set_config(controller, args):
     parser = configparser.ConfigParser()
     parser.read(args.layout)
 
-    config = ClusterConfig()
+    config = Configuration()
 
     for section in parser.sections():
         if section == 'instances':
@@ -413,7 +453,7 @@ def cmd_set_config(controller, args):
                 if len(parts) != 2:
                     LOG.warning('invalid instance "%s" spec "%s", skipping', key, val)
                     continue
-                config.instances.append(InstanceConfig(key, parts[0].strip(), parts[1].strip()))
+                config.instances.append(Instance(key, parts[0].strip(), parts[1].strip()))
             continue
 
         # The other sections are data cluster nodes. Each section name
@@ -424,7 +464,7 @@ def cmd_set_config(controller, args):
             continue
 
         try:
-            config.nodes.append(NodeConfig.from_config(parser, section))
+            config.nodes.append(Node.from_config(parser, section))
         except ValueError as err:
             LOG.warning('invalid node "%s" spec, skipping: "%s"', section, err)
 
@@ -443,7 +483,16 @@ def cmd_set_config(controller, args):
         LOG.error('Received unexpected event: %s', resp)
         return 1
 
-    return 0
+    retval = 0
+
+    for broker_data in resp.results:
+        res = Result.from_broker(broker_data)
+        if not res.success:
+            msg = ': ' + res.error if res.error else ''
+            print_error('instance %s failure%s'.format(res.instance, msg))
+            retval = 1
+
+    return retval
 
 
 # Utility functions
