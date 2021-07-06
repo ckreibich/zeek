@@ -45,7 +45,8 @@ except ImportError:
 # Specialization of Broker's Event class to make it printable and allow us to
 # register instances as known event types.
 class Event(broker.zeek.Event):
-    # Contextualize the event: name, argument names, and argument types.
+    # Contextualize the event: name, argument names, and argument types (in
+    # Broker rendition).
     NAME = None
     ARG_NAMES = []
     ARG_TYPES = []
@@ -64,6 +65,9 @@ class Event(broker.zeek.Event):
         if len(args) != len(self.ARG_NAMES):
             raise TypeError('event argument length mismatch: have %d, expected %d'
                             % (len(args), len(self.ARG_NAMES)))
+        if len(self.ARG_NAMES) != len(self.ARG_TYPES):
+            raise TypeError('number of event argument names and types must match')
+
         for tpl in zip(args, self.ARG_TYPES, range(len(self.ARG_TYPES))):
             # The data model is permissive regarding list vs tuple, so accept
             # lists in stead of tuple:
@@ -84,7 +88,12 @@ class Event(broker.zeek.Event):
             raise AttributeError
 
     def __str__(self):
-        return self.name() + '(' + ', '.join([str(type(arg)) for arg in self.args()]) + ')'
+        # A list of pairs (argument name, typename)
+        zeek_style_args = zip(self.ARG_NAMES, [str(type(arg)) for arg in self.args()])
+        # That list, with each item now a string "<name>: <typename"
+        zeek_style_arg_strings = [': '.join(arg) for arg in zeek_style_args]
+        # A Zeek-looking event signature
+        return self.name() + '(' + ', '.join(zeek_style_arg_strings) + ')'
 
 
 class EventRegistry:
@@ -164,8 +173,6 @@ class events:
 class Controller:
     """A class representing our Broker connection to the Zeek cluster controller."""
 
-    BROKER_TIMEOUT_SECS = 10.0
-
     def __init__(self, controller_host, controller_port,
                  controller_topic=ZEEK_CLIENT_CONTROLLER_TOPIC):
         self.controller_host = controller_host
@@ -199,13 +206,23 @@ class Controller:
         """
         self.ep.publish(self.controller_topic, event)
 
-    def receive(self):
+    def receive(self, timeout_secs=10):
         """Receive an event from the controller's event subscriber.
+
+        Args:
+            timeout_secs (int): number of seconds before we time out.
+                Has sematics of the poll.poll() timeout argument, i.e.
+                None and negative values mean no timeout. The default
+                is a 10-second timeout.
 
         Returns:
             Instance of one of the Event classes defined for the client,
-            or None if BROKER_TIMEOUT_SECS passed before anything arrived.
+            or None if timeout_secs passed before anything arrived.
         """
+        timeout_msecs = timeout_secs
+        if timeout_msecs is not None:
+            timeout_msecs *= 1000
+
         # XXX this is intentionally still very basic -- no event dispatch
         # mechanism, event loop, etc. The extent to which we require these will
         # become clearer soon. For now we just poll on the fds of the subscriber
@@ -213,7 +230,7 @@ class Controller:
         # error occurs. Might have to handle POLLERR and POLLHUP here too to be
         # more robust still.
         while True:
-            resps = self.poll.poll(self.BROKER_TIMEOUT_SECS * 1000)
+            resps = self.poll.poll(timeout_msecs)
             if not resps:
                 return None, 'connection timed out'
 
@@ -405,12 +422,13 @@ class Result:
 # Command handlers
 
 def cmd_idle(controller, args):
-    resp, msg = controller.receive()
+    while True:
+        resp, msg = controller.receive(None)
 
-    if resp is None:
-        LOG.info('no event received: %s', msg)
-    else:
-        LOG.info('received "%s"', resp)
+        if resp is None:
+            print('no event received: {}'.format(msg))
+        else:
+            print('received "{}"'.format(resp))
 
     return 0
 
