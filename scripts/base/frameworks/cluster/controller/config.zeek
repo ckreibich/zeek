@@ -3,7 +3,8 @@
 module ClusterController;
 
 export {
-	# Whether to run a controller in this installation.
+	# Whether to run a cluster controller. When this is F, @load'ing
+	# the agent directory has no effect.
 	const enable = F &redef;
 
 	# The name of this controller in the cluster.
@@ -38,9 +39,18 @@ export {
 	# instance records.
 	const instances: table[string] of ClusterController::Types::Instance = { } &redef;
 
+	# The role of this node in cluster management. Agent and
+	# controller both redef this. Used during logging.
 	const role = ClusterController::Types::NONE &redef;
 
-	# Returns the effective network information for this controller.
+	# Agent and controller currently log only, not via the data cluster's
+        # logger. (This might get added later.) For now, this means that
+	# if both write to the same log file, it gets garbled. The following
+	# lets you specify the working directory specifically for the agent.
+	const directory = "" &redef;
+
+	# The following functions return the effective network endpoint
+	# information for this controller, in two related forms.
 	global network_info: function(): Broker::NetworkInfo;
 	global endpoint_info: function(): Broker::EndpointInfo;
 }

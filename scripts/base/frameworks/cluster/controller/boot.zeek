@@ -9,6 +9,8 @@ event zeek_init()
 	local sn = Supervisor::NodeConfig($name=epi$id,
 	    $scripts=vector("base/frameworks/cluster/controller/main.zeek"));
 
+	if ( ClusterController::directory != "" )
+		sn$directory = ClusterController::directory;
 	if ( ClusterController::stdout_file != "" )
 		sn$stdout_file = ClusterController::stdout_file;
 	if ( ClusterController::stderr_file != "" )
@@ -21,7 +23,7 @@ event zeek_init()
 
 	if ( res != "" )
 		{
-		print(fmt("XXX supervisor could not create controller node: %s", res));
+		print(fmt("error: supervisor could not create controller node: %s", res));
 		exit(1);
 		}
 	}

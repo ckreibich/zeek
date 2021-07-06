@@ -123,24 +123,29 @@ event ClusterAgent::API::set_configuration_request(reqid: string, config: Cluste
 		node = nodes[nodename];
 		nc = Supervisor::NodeConfig($name=nodename);
 
+		if ( ClusterAgent::cluster_directory != "" )
+			nc$directory = ClusterAgent::cluster_directory;
+
 		if ( node?$interface )
 			nc$interface = node$interface;
-		# XXX use options for the following:
-		# - directory
-		# - stdout_file
-		# - stderr_file
 		if ( node?$cpu_affinity )
 			nc$cpu_affinity = node$cpu_affinity;
 		if ( node?$scripts )
 			nc$scripts = node$scripts;
 		if ( node?$env )
 			nc$env = node$env;
-		nc$cluster = data_cluster;
 
+		# XXX could use options to enable per-node overrides for
+		# directory, stdout, stderr, others?
+
+		nc$cluster = data_cluster;
 		supervisor_create(nc);
 		}
 
-	# XXX this should fail if any of above problems occurred.
+	# XXX this currently doesn not fail if any of above problems occurred,
+	# mainly due to the tediousness of handling the supervisor's response
+	# events asynchonously. The only indication of error will be
+	# notification events to the controller.
 
 	local res = ClusterController::Types::Result(
 	    $reqid = reqid,
@@ -167,10 +172,10 @@ event zeek_init()
 	local epi = ClusterAgent::endpoint_info();
 	local agent_topic = ClusterAgent::topic_prefix + "/" + epi$id;
 
-	# The agent needs to peer with the supervisor, this doesn't currently
-        # happen automatically. The address by default falls back to Broker's
-	# default, which relies on ZEEK_DEFAULT_LISTEN_ADDR and so might just
-	# be "". In that case, we substitute loopback.
+	# The agent needs to peer with the supervisor -- this doesn't currently
+        # happen automatically. The address defaults to Broker's default, which
+        # relies on ZEEK_DEFAULT_LISTEN_ADDR and so might just be "". In that
+        # case, we substitute loopback.
 	local supervisor_addr = SupervisorControl::listen_address;
 	if ( |supervisor_addr| == 0 )
 		supervisor_addr = "127.0.0.1";
@@ -179,9 +184,13 @@ event zeek_init()
 	             SupervisorControl::listen_port,
 		     SupervisorControl::listen_retry);
 
+	# Agents need receive communication targeted at it, and any responses
+        # from the supervisor.
 	Broker::subscribe(agent_topic);
 	Broker::subscribe(SupervisorControl::topic_prefix);
 
+	# Auto-publish a bunch of events. Glob patterns or module-level
+	# auto-publish would be helpful here.
 	Broker::auto_publish(agent_topic, ClusterAgent::API::set_configuration_response);
 	Broker::auto_publish(agent_topic, ClusterAgent::API::notify_agent_hello);
 	Broker::auto_publish(agent_topic, ClusterAgent::API::notify_change);
@@ -195,6 +204,7 @@ event zeek_init()
 	Broker::auto_publish(SupervisorControl::topic_prefix, SupervisorControl::restart_request);
 	Broker::auto_publish(SupervisorControl::topic_prefix, SupervisorControl::restart_response);
 
+	# Establish connectivity with the controller.
 	if ( ClusterAgent::controller$address != "0.0.0.0" )
 		{
 		# We connect to the controller.

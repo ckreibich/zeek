@@ -230,7 +230,11 @@ class Controller:
         # error occurs. Might have to handle POLLERR and POLLHUP here too to be
         # more robust still.
         while True:
-            resps = self.poll.poll(timeout_msecs)
+            try:
+                resps = self.poll.poll(timeout_msecs)
+            except OSError as err:
+                return None, 'polling error: {}'.format(err)
+
             if not resps:
                 return None, 'connection timed out'
 
@@ -421,7 +425,7 @@ class Result:
 
 # Command handlers
 
-def cmd_idle(controller, args):
+def cmd_monitor(controller, args):
     while True:
         resp, msg = controller.receive(None)
 
@@ -554,11 +558,11 @@ def create_parser():
         help='See `%(prog)s <command> -h` for per-command usage info.')
     command_parser.required = True
 
-    # idle
+    # monitor
 
     sub_parser = command_parser.add_parser(
-        'idle', help='For troubleshooting: do nothing, just wait for events')
-    sub_parser.set_defaults(run_cmd=cmd_idle)
+        'monitor', help='For troubleshooting: do nothing, just report events')
+    sub_parser.set_defaults(run_cmd=cmd_monitor)
 
     # instances
 
@@ -624,7 +628,10 @@ def main():
     if not controller.connect():
         return 1
 
-    return args.run_cmd(controller, args)
+    try:
+        return args.run_cmd(controller, args)
+    except KeyboardInterrupt:
+        return 0
 
 
 if __name__ == '__main__':

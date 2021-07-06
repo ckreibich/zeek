@@ -3,7 +3,8 @@
 module ClusterAgent;
 
 export {
-	# Whether to run an agent in this installation.
+	# Whether to run a cluster agent. When this is F, @load'ing
+	# the agent directory has no effect.
 	const enable = F &redef;
 
 	# The name this agent uses to represent the cluster instance
@@ -35,8 +36,19 @@ export {
 	const controller: Broker::NetworkInfo = [
 		$address="0.0.0.0", $bound_port=0/unknown] &redef;
 
-	# Returns the effective network endpoint information for this
-	# agent.
+	# Agent and controller currently log only, not via the data cluster's
+        # logger. (This might get added later.) For now, this means that
+	# if both write to the same log file, it gets garbled. The following
+	# lets you specify the working directory specifically for the agent.
+	const directory = "" &redef;
+
+	# Working directory for data cluster nodes. When relative, note
+	# that this will apply from the working directory of the agent,
+	# since it creates data cluster nodes.
+	const cluster_directory = "" &redef;
+
+	# The following functions return the effective network endpoint
+	# information for this agent, in two related forms.
 	global instance: function(): ClusterController::Types::Instance;
 	global endpoint_info: function(): Broker::EndpointInfo;
 }
