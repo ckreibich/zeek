@@ -187,6 +187,10 @@ public:
 		 */
 		std::optional<int> cpu_affinity;
 		/**
+		 * Whether to start the node in bare mode.
+		 */
+		bool bare_mode;
+		/**
 		 * Additional script filename/paths that the node should load.
 		 */
 		std::vector<std::string> scripts;
