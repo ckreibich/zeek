@@ -18,7 +18,7 @@
 	url = https://github.com/zeek/zeek-3rdparty
 [submodule "auxil/broker"]
 	path = auxil/broker
-	url = https://github.com/zeek/broker
+	url = https://github.com/ckreibich/broker
 [submodule "auxil/netcontrol-connectors"]
 	path = auxil/netcontrol-connectors
 	url = https://github.com/zeek/zeek-netcontrol
