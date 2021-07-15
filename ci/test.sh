@@ -57,8 +57,7 @@ function run_btests
     banner "Running baseline tests: zeek"
 
     pushd testing/btest
-    ${BTEST} -z ${ZEEK_CI_BTEST_RETRIES} -d -b -x btest-results.xml -j ${ZEEK_CI_BTEST_JOBS} || result=1
-    make coverage
+    ${BTEST} -z ${ZEEK_CI_BTEST_RETRIES} -d -b -x btest-results.xml -j ${ZEEK_CI_BTEST_JOBS} ./supervisor || result=1
     prep_artifacts
     popd
     return 0
@@ -104,7 +103,6 @@ function run_external_btests
 
 banner "Start tests: ${ZEEK_CI_CPUS} cpus, ${ZEEK_CI_BTEST_JOBS} btest jobs"
 
-run_unit_tests
 run_btests
 
 exit ${result}

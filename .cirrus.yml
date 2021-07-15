@@ -44,8 +44,7 @@ ci_template: &CI_TEMPLATE
 
   sync_submodules_script: git submodule update --recursive --init
 
-  build_script: ./ci/build.sh
-  test_script: ./ci/test.sh
+  bisect_script: ./ci/bisect-caf.sh
 
   on_failure:
     upload_btest_tmp_dir_artifacts:
