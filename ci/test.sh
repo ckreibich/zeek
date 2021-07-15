@@ -106,6 +106,5 @@ banner "Start tests: ${ZEEK_CI_CPUS} cpus, ${ZEEK_CI_BTEST_JOBS} btest jobs"
 
 run_unit_tests
 run_btests
-run_external_btests
 
 exit ${result}

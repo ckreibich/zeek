@@ -44,12 +44,6 @@ ci_template: &CI_TEMPLATE
 
   sync_submodules_script: git submodule update --recursive --init
 
-  get_external_pcaps_cache:
-    folder: testing/external/zeek-testing-traces
-    fingerprint_script: echo zeek-testing-traces
-    populate_script: ./ci/init-external-repos.sh
-  init_external_repos_script: ./ci/init-external-repos.sh
-
   build_script: ./ci/build.sh
   test_script: ./ci/test.sh
 
