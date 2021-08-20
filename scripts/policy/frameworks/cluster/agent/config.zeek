@@ -53,7 +53,7 @@ function instance(): ClusterController::Types::Instance
 	{
 	local epi = endpoint_info();
 	return ClusterController::Types::Instance($name=epi$id,
-		$host=to_addr(epi$network$address),
+		$host=epi$network$address,
 		$listen_port=epi$network$bound_port);
 	}
 

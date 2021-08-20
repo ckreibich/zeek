@@ -19,16 +19,22 @@ export {
 	};
 
 	## Configuration describing a Zeek instance running a Cluster
-	## Agent. Normally, there'll be one instance per cluster
-	## system: a single physical system.
+	## Agent. Normally, there'll be one instance per cluster:
+	## a single physical system.
 	type Instance: record {
 		# Unique, human-readable instance name
 		name: string;
-		# IP address of system
-		host: addr;
+		# Hostname or IP address of system hosting the instance.
+		# When omitted, the instance connects to the controller.
+		host: string &optional;
+		# The IP address the host name resolves to -- filled in
+		# by the cluster controller framework as needed.
+		address: addr &optional;
 		# Agent listening port. Not needed if agents connect to controller.
 		listen_port: port &optional;
 	};
+
+	type InstanceVec: vector of Instance;
 
 	## State that a Cluster Node can be in. State changes trigger an
 	## API notification (see notify_change()).
@@ -58,9 +64,11 @@ export {
 	type Configuration: record {
 		id: string &default=unique_id(""); # Unique identifier for a particular configuration
 
-		## The instances in the cluster.
-		## XXX we may be able to make this optional
-		instances: set[Instance];
+		## The instances in the cluster. This only needs to be provided
+		## when the controller is to learn a new instance set. Without
+		## one, the instance mentioned for each of the nodes below must
+		## already be known to the controller.
+		instances: set[Instance] &optional;
 
 		## The set of nodes in the cluster, as distributed over the instances.
 		nodes: set[Node];

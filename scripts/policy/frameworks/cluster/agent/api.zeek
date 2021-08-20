@@ -16,7 +16,7 @@ export {
 	# Notification events, agent -> controller
 
 	# Report agent being available.
-	global notify_agent_hello: event(instance: string, host: addr,
+	global notify_agent_hello: event(instance: string, address: addr,
 	    api_version: count);
 
 	# Report node state changes.

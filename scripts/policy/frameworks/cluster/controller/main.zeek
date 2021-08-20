@@ -9,26 +9,27 @@
 
 redef ClusterController::role = ClusterController::Types::CONTROLLER;
 
-event ClusterAgent::API::notify_agent_hello(instance: string, host: addr, api_version: count)
+event ClusterAgent::API::notify_agent_hello(instance: string, address: addr, api_version: count)
 	{
-	# See if we already know about this agent; if not, register
-	# it.
-	#
-	# XXX protection against rogue agents?
-
 	if ( instance in ClusterController::instances )
 		{
+		# This is an instance we previously knew about in our local config.
 		# Do nothing, unless this known agent checks in with a mismatching
 		# API version, in which case we kick it out.
 		if ( api_version != ClusterController::API::version )
 			{
+			ClusterController::Log::warning(
+			    fmt("agent %s/%s speaks incompatible agent protocol (%s, need %s), unpeering",
+			        instance, address, api_version, ClusterController::API::version));
+
 			local inst = ClusterController::instances[instance];
 			if ( inst?$listen_port )
 				{
 				# We peered with this instance, unpeer.
-				Broker::unpeer(cat(inst$host), inst$listen_port );
+				Broker::unpeer(inst$host, inst$listen_port );
 				# XXX what to do if they connected to us?
 				}
+
 			delete ClusterController::instances[instance];
 			}
 
@@ -37,18 +38,28 @@ event ClusterAgent::API::notify_agent_hello(instance: string, host: addr, api_ve
 		# the user some leeway in spelling out the original config.
 		ClusterController::instances[instance]$name = instance;
 
+		# Update the address, now that we've received one.
+		# XXX can the agent reliably report a useful (i.e., reacheable) IP address?
+		ClusterController::instances[instance]$address = address;
+
 		return;
 		}
-
-	if ( api_version != ClusterController::API::version )
+	else
 		{
-		ClusterController::Log::warning(
-		    fmt("agent %s/%s speaks incompatible agent protocol (%s, need %s), unpeering",
-		        instance, host, api_version, ClusterController::API::version));
+		# This is a new instance we didn't yet know about.
+		# XXX could optionally reject any instances unknown to us by name here.
+		# XXX protection against rogue agents? Authentication?
+		if ( api_version != ClusterController::API::version )
+			{
+			ClusterController::Log::warning(
+			    fmt("agent %s/%s speaks incompatible agent protocol (%s, need %s), ignoring",
+			        instance, address, api_version, ClusterController::API::version));
+			return;
+			}
 		}
 
-	ClusterController::instances[instance] = ClusterController::Types::Instance($name=instance, $host=host);
-	ClusterController::Log::info(fmt("instance %s/%s has checked in", instance, host));
+	ClusterController::instances[instance] = [$name=instance, $host=cat(address), $address=address];
+	ClusterController::Log::info(fmt("new instance %s/%s has checked in", instance, address));
 	}
 
 
@@ -137,47 +148,66 @@ event ClusterAgent::API::set_configuration_response(reqid: string, result: Clust
 	ClusterController::Request::finish(req$id);
 	}
 
-event ClusterController::API::set_configuration_request(reqid: string, config: ClusterController::Types::Configuration)
+function resolve_instances(instances: ClusterController::Types::InstanceVec): ClusterController::Types::InstanceVec
 	{
-	ClusterController::Log::info(fmt("rx ClusterController::API::set_configuration_request %s", reqid));
+	local pending_lookups = 0;
 
-	local req = ClusterController::Request::create(reqid);
-	req$set_configuration_state = ClusterController::Request::SetConfigurationState();
-
-	# Compare new configuration to the current one and send updates
-	# to the instances as needed.
-	if ( config?$instances )
+	# Establish IP addresses for each instance's agent. Several possibilities here:
+	for ( i in instances )
 		{
-		# XXX properly handle instance update: connect to new instances provided
-		# when they are listening, accept connections from new instances that are
-		# not
-		for ( inst in config$instances )
+		local inst = instances[i];
+
+		# - IP addresses are already resolved and provided by client: nothing to do.
+		if ( inst?$address )
 			{
-			if ( inst$name !in ClusterController::instances )
+			ClusterController::Log::info(fmt("Instance %s agent has address (%s)", inst$name, inst$address));
+			next;
+			}
+
+		# - IP addresses provided in text form, so just transform to address:
+		if ( is_valid_ip(inst$host) )
+			{
+			inst$address = to_addr(inst$host);
+			ClusterController::Log::info(fmt("Instance %s agent hostname is address (%s)", inst$name, inst$address));
+			next;
+			}
+
+		# - We need to look up the address, asynchronously.
+		++pending_lookups;
+
+		when ( local addrs = lookup_hostname(inst$host) )
+			{
+			for ( a in addrs ) # We'll use any returned address
 				{
-				local res = ClusterController::Types::Result($reqid=reqid, $instance=inst$name);
-				res$error = fmt("instance %s is unknown, skipping", inst$name);
-				req$results += res;
+				inst$address = a;
+				ClusterController::Log::info(fmt("Instance %s agent hostname %s resolved to %s",
+				                                 inst$name, inst$host, inst$address));
+				--pending_lookups;
+				break;
 				}
+			}
+		timeout 5sec
+			{
+			--pending_lookups;
 			}
 		}
 
-	# XXX validate the configuration:
-	# - Are node instances among defined instances?
-	# - Are all names unique?
-	# - Are any node options understood?
-	# - Do node types with optional fields have required values?
-	# ...
+	return when ( pending_lookups == 0 )
+		{
+		# We return the entirety of the modified config record to work around
+		# pass-by-value issues for asynchronous functions.
+		return instances;
+		}
+	}
 
-	# Transmit the configuration on to the agents. They need to be aware of
-	# each other's location and nodes, so the data cluster nodes can connect
-	# (for example, so a worker on instance 1 can connect to a logger on
-	# instance 2).
+function send_config_to_agents(req: ClusterController::Request::Request,
+                               config: ClusterController::Types::Configuration)
+	{
 	for ( name in ClusterController::instances )
 		{
 		local agent_topic = ClusterAgent::topic_prefix + "/" + name;
 		local areq = ClusterController::Request::create();
-		areq$parent_id = reqid;
+		areq$parent_id = req$id;
 
 		# We track the requests sent off to each agent. As the
 		# responses come in, we can check them off as completed,
@@ -186,12 +216,123 @@ event ClusterController::API::set_configuration_request(reqid: string, config: C
 
 		# XXX could also broadcast just once on the agent prefix, but
 		# explicit request/response pairs for each agent seems cleaner.
-		ClusterController::Log::info(fmt("tx ClusterAgent::API::set_configuration_request %s to %s",
-		                                 areq$id, name));
+		ClusterController::Log::info(fmt("tx ClusterAgent::API::set_configuration_request %s to %s", areq$id, name));
 		Broker::publish(agent_topic, ClusterAgent::API::set_configuration_request, areq$id, config);
 		}
+	}
 
-	# Response event gets sent via the agents' reponse event.
+event ClusterController::API::set_configuration_request(reqid: string, config: ClusterController::Types::Configuration)
+	{
+	local agent_topic: string;
+	local req: ClusterController::Request::Request;
+	local name: string;
+	local inst: ClusterController::Types::Instance;
+	local insts: ClusterController::Types::InstanceVec;
+
+	ClusterController::Log::info(fmt("rx ClusterController::API::set_configuration_request %s", reqid));
+
+	req = ClusterController::Request::create(reqid);
+	req$set_configuration_state = ClusterController::Request::SetConfigurationState();
+
+	if ( ! config?$instances )
+		{
+		# Without a new instance configuration, we fill in the instance knowledge
+		# we have and send the new cluster layout on to the existing agents.
+		#
+		# Response event gets sent via the agents' reponse event handler, above.
+		config$instances = set();
+		for ( name, inst in ClusterController::instances )
+			add config$instances[inst];
+		send_config_to_agents(req, config);
+		return;
+		}
+
+	for ( inst in config$instances )
+		insts[|insts|] = inst;
+
+	when ( local insts_res = resolve_instances(insts) )
+		{
+		for ( i in insts_res )
+			{
+			inst = insts_res[i];
+			if ( ! inst?$address )
+				{
+				local res = ClusterController::Types::Result($reqid=reqid, $instance=inst$name);
+				res$error = fmt("instance %s hostname %s did not resolve, skipping",
+				                inst$name, inst$host);
+				req$results += res;
+				}
+			}
+
+		# XXX validate the configuration:
+		# - Are all names unique?
+		# - Do all node instances refer to instances that actually exist?
+		# - Are all node options understood?
+		# - Do node types with optional fields have required values?
+		# ...
+		# -> Strip any nodes / instances that failed
+
+		# If we have errors at this point, just send them back and don't proceed further.
+		# We don't want to establish a new cluster with wonky instance configuration.
+		# We have not yet made any operational changes to the current instances & cluster.
+		if ( |req$results| > 0 )
+			{
+			ClusterController::Log::info(fmt("tx ClusterController::API::set_configuration_response %s", req$id));
+			event ClusterController::API::set_configuration_response(req$id, req$results);
+			ClusterController::Request::finish(req$id);
+			return;
+			}
+
+		# The config includes instances, some of which may be new to us. For any known
+		# ones that aren't included in the new set no longer included, send config that
+		# will shut down their cluster, and unpeer.
+		local insts_current: set[string];
+		local insts_new: set[string];
+
+		for ( name in ClusterController::instances )
+			add insts_current[name];
+		for ( inst in config$instances )
+			add insts_new[inst$name];
+
+		for ( dropout in insts_new - insts_current )
+			{
+			inst = ClusterController::instances[dropout];
+			agent_topic = ClusterAgent::topic_prefix + "/" + name;
+
+			# This is "fire and forget", so we don't register proper requests,
+			# or track the response.
+			local cfg = ClusterController::Types::Configuration();
+			Broker::publish(agent_topic, ClusterAgent::API::set_configuration_request, unique_id(""), cfg);
+
+			if ( inst?$listen_port )
+				{
+				# XXX could use a real disconnect/shutdown here
+				Broker::unpeer(inst$host, inst$listen_port);
+				}
+
+			delete ClusterController::instances[dropout];
+			}
+
+		# We need to update the instances in the provided config with
+		# the ones that now have resolved addresses:
+		config$instances = set();
+
+		for ( i in insts_res )
+			{
+			inst = insts_res[i];
+			add config$instances[inst];
+			ClusterController::instances[inst$name] = inst;
+			ClusterController::Log::info(fmt("registering %s: %s (%s)", inst$name, inst$host, inst$address));
+			}
+
+		# Transmit the configuration on to the agents. They need to be aware of
+		# each other's location and nodes, so the data cluster nodes can connect
+		# (for example, so a worker on instance 1 can connect to a logger on
+		# instance 2).
+		#
+		# Response event gets sent via the agents' reponse event handler, above.
+		send_config_to_agents(req, config);
+		}
 	}
 
 event ClusterController::API::get_instances_request(reqid: string)
@@ -225,20 +366,41 @@ event zeek_init()
 
 	if ( |ClusterController::instances| > 0 )
 		{
-		# We peer with the agents -- otherwise, the agents peer
-		# with (i.e., connect to) us.
-		for ( i in ClusterController::instances )
-			{
-			local inst = ClusterController::instances[i];
+		local inst: ClusterController::Types::Instance;
+		local insts: ClusterController::Types::InstanceVec;
+		local name: string;
 
+		for ( name, inst in ClusterController::instances )
+			{
 			if ( ! inst?$listen_port )
 				{
-				# XXX config error -- this must be there
+				# This isn't an instance we connect to, they'll talk to us.
 				next;
 				}
 
-			Broker::peer(cat(inst$host), inst$listen_port,
-			             ClusterController::connect_retry);
+			insts[|insts|] = inst;
+			}
+
+		when ( local insts_res = resolve_instances(insts) )
+			{
+			for ( i in insts_res )
+				{
+				inst = insts_res[i];
+				ClusterController::instances[inst$name] = inst;
+				}
+
+			# We peer with instance agent if we have a hostname/address
+			# to connect to. Otherwise, the agents are to connect to us.
+			for ( name, inst in ClusterController::instances )
+				{
+				if ( ! inst?$listen_port )
+					next;
+
+				ClusterController::Log::info(fmt("controller is peering with instance %s/%s",
+				                                 inst$name, inst$host));
+				Broker::peer(inst$host, inst$listen_port,
+				             ClusterController::connect_retry);
+				}
 			}
 		}
 

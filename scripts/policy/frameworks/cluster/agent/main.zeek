@@ -88,10 +88,13 @@ event ClusterAgent::API::set_configuration_request(reqid: string, config: Cluste
 	# XXX should do this transactionally, only set when all else worked
 	global_config = config;
 
-	# Refresh the instances table:
-	instances = table();
-	for ( inst in config$instances )
-		instances[inst$name] = inst;
+	# Refresh the instances table if the configuration spells out instances:
+	if ( config?$instances )
+		{
+		instances = table();
+		for ( inst in config$instances )
+		    instances[inst$name] = inst;
+		}
 
 	# Terminate existing nodes
 	for ( nodename in nodes )
@@ -109,7 +112,7 @@ event ClusterAgent::API::set_configuration_request(reqid: string, config: Cluste
 
 		local cep = Supervisor::ClusterEndpoint(
 		    $role = node$role,
-		    $host = instances[node$instance]$host,
+		    $host = instances[node$instance]$address,
 		    $p = node$p);
 
 		if ( node?$interface )
