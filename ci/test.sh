@@ -60,55 +60,16 @@ function run_btests
     banner "Running baseline tests: zeek"
 
     pushd testing/btest
-    ${BTEST} -z ${ZEEK_CI_BTEST_RETRIES} -d -b -x btest-results.xml -j ${ZEEK_CI_BTEST_JOBS} || result=1
+    ${BTEST} -d -b -x btest-results.xml -j ${ZEEK_CI_BTEST_JOBS} || result=1
     make coverage
     prep_artifacts
     popd
     return 0
     }
 
-function run_external_btests
-    {
-    local zeek_testing_pid=""
-    local zeek_testing_pid_private=""
-    pushd testing/external/zeek-testing
-    ${BTEST} -d -b -x btest-results.xml -j ${ZEEK_CI_BTEST_JOBS} >btest.out 2>&1 &
-    zeek_testing_pid=$!
-    popd
-
-    if [[ -d testing/external/zeek-testing-private ]]; then
-        pushd testing/external/zeek-testing-private
-        # Note that we don't use btest's "-d" flag or generate/upload any
-        # artifacts to prevent leaking information about the private pcaps.
-        ${BTEST} -b -j ${ZEEK_CI_BTEST_JOBS} >btest.out 2>&1 &
-        zeek_testing_private_pid=$!
-        popd
-    fi
-
-    banner "Running baseline tests: external/zeek-testing"
-    wait ${zeek_testing_pid} || result=1
-    pushd testing/external/zeek-testing
-    cat btest.out
-    make coverage
-    prep_artifacts
-    popd
-
-    if [[ -n "${zeek_testing_private_pid}" ]]; then
-        banner "Running baseline tests: external/zeek-testing-private"
-        wait ${zeek_testing_private_pid} || result=1
-        pushd testing/external/zeek-testing-private
-        make coverage
-        cat btest.out
-        popd
-    else
-        banner "Skipping private tests (not available for PRs)"
-    fi
-    }
-
 banner "Start tests: ${ZEEK_CI_CPUS} cpus, ${ZEEK_CI_BTEST_JOBS} btest jobs"
 
 run_unit_tests
 run_btests
-run_external_btests
 
 exit ${result}
