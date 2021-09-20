@@ -9,7 +9,7 @@
 	url = https://github.com/zeek/zeekctl
 [submodule "auxil/btest"]
 	path = auxil/btest
-	url = https://github.com/zeek/btest
+	url = https://github.com/ckreibich/btest
 [submodule "cmake"]
 	path = cmake
 	url = https://github.com/zeek/cmake
