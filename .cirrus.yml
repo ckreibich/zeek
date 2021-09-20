@@ -61,10 +61,10 @@ ci_template: &CI_TEMPLATE
       type: text/html
 
 env:
+  BTEST_BG_WAIT_SCALE: 10
   CIRRUS_WORKING_DIR: /zeek
   ZEEK_CI_CPUS: *CPUS
   ZEEK_CI_BTEST_JOBS: *BTEST_JOBS
-  ZEEK_CI_BTEST_RETRIES: *BTEST_RETRIES
   ZEEK_CI_CONFIGURE_FLAGS: *CONFIG
   # This is a single-purpose, read-only GitHub deploy key (SSH private key) for
   # the zeek-testing-private repository.
@@ -176,40 +176,6 @@ sanitizer_8_24_task:
     cpu: 8
     # AddressSanitizer uses a lot more memory than a typical config.
     memory: 24GB
-  << : *CI_TEMPLATE
-  test_fuzzers_script: ./ci/test-fuzzers.sh
-  coverage_script: ./ci/upload-coverage.sh
-  env:
-    ZEEK_CI_CPUS: 8
-    CXXFLAGS: -DZEEK_DICT_DEBUG
-    ZEEK_CI_CONFIGURE_FLAGS: *SANITIZER_CONFIG
-    ZEEK_TAILORED_UB_CHECKS: 1
-    UBSAN_OPTIONS: print_stacktrace=1
-
-sanitizer_8_28_task:
-  container:
-    # Just uses a recent/common distro to run memory error/leak checks.
-    dockerfile: ci/ubuntu-18.04/Dockerfile
-    cpu: 8
-    # AddressSanitizer uses a lot more memory than a typical config.
-    memory: 28GB
-  << : *CI_TEMPLATE
-  test_fuzzers_script: ./ci/test-fuzzers.sh
-  coverage_script: ./ci/upload-coverage.sh
-  env:
-    ZEEK_CI_CPUS: 8
-    CXXFLAGS: -DZEEK_DICT_DEBUG
-    ZEEK_CI_CONFIGURE_FLAGS: *SANITIZER_CONFIG
-    ZEEK_TAILORED_UB_CHECKS: 1
-    UBSAN_OPTIONS: print_stacktrace=1
-
-sanitizer_8_32_task:
-  container:
-    # Just uses a recent/common distro to run memory error/leak checks.
-    dockerfile: ci/ubuntu-18.04/Dockerfile
-    cpu: 8
-    # AddressSanitizer uses a lot more memory than a typical config.
-    memory: 32GB
   << : *CI_TEMPLATE
   test_fuzzers_script: ./ci/test-fuzzers.sh
   coverage_script: ./ci/upload-coverage.sh
