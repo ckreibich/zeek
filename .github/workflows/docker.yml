@@ -16,6 +16,7 @@ defaults:
 env:
   IMAGE_NAME: zeek-image.tar
   IMAGE_FILE: /tmp/zeek-image.tar
+  IMAGE_PATH: /tmp
 
 jobs:
   docker-build:
@@ -105,4 +106,43 @@ jobs:
         with:
           name: docker-btest
           path: docker/btest/.tmp
+          if-no-files-found: ignore
+
+  cluster-testing:
+    # We need the Zeek Docker image build job to complete first, since we need
+    # the resulting image for our docker-compose setup.
+    needs: docker-build
+    runs-on: ubuntu-latest
+    steps:
+      # Grab the sources so we have access to btest. Could also use pip, but it
+      # seems appealing to be using the in-tree version of btest. btest is in a
+      # submodule; we check it out selectively to save time.
+      - uses: actions/checkout@v2
+      - name: Check out btest
+        run: git submodule update --init ./auxil/btest
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: ${{ env.IMAGE_PATH }}
+
+      - name: Load Docker image
+        run: docker load --input ${{ env.IMAGE_FILE }}
+
+      - name: Retrieve cluster testsuite
+        uses: actions/checkout@v2
+        with:
+          repository: ckreibich/zeek-testing-cluster
+          path: testing/external/zeek-testing-cluster
+
+      - name: Run testsuite
+        run: make -C testing/external/zeek-testing-cluster
+
+      - name: Preserve btest artifacts
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: cluster-btest
+          path: testing/external/zeek-testing-cluster/.tmp
           if-no-files-found: ignore
