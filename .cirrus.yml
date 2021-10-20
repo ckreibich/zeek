@@ -21,15 +21,6 @@ resources_template: &RESOURCES_TEMPLATE
   # For greediness, see https://medium.com/cirruslabs/introducing-greedy-container-instances-29aad06dc2b4
   greedy: true
 
-macos_resources_template: &MACOS_RESOURCES_TEMPLATE
-  # https://medium.com/cirruslabs/new-macos-task-execution-architecture-for-cirrus-ci-604250627c94
-  # suggests we can go faster here:
-  env:
-    ZEEK_CI_CPUS: 12
-    ZEEK_CI_BTEST_JOBS: 12
-    # No permission to write to default location of /zeek
-    CIRRUS_WORKING_DIR: /tmp/zeek
-
 ci_template: &CI_TEMPLATE
   only_if: >
     $CIRRUS_PR != ''
