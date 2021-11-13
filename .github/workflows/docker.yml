@@ -59,11 +59,15 @@ jobs:
           # Any other refs are not published below.
           if [ "${GITHUB_REF}" = "refs/tags/release" ]; then
             echo "::set-output name=tag::zeek:latest"
+            echo "xxx 1 name=tag::zeek:latest"
           elif [ "${GITHUB_REF}" = "refs/heads/master" ]; then
             echo "::set-output name=tag::zeek-dev:latest"
+            echo "xxx 2 name=tag::zeek-dev:latest"
           elif [[ "${GITHUB_REF}" = refs/tags/v* ]] && [[ "${GITHUB_REF}" != refs/tags/v*-dev ]]; then
             echo "::set-output name=tag::zeek:${RELEASE_VERSION}"
+            echo "xxx 3 name=tag::zeek:${RELEASE_VERSION}"
           fi
+          echo "xxx done"
 
       - name: Login to DockerHub
         uses: docker/login-action@v1
