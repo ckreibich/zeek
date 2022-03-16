@@ -5,7 +5,7 @@
 
 ## An ordered array of strings. The entries are indexed by successive numbers.
 ## Note that it depends on the usage whether the first index is zero or one.
-## CHANGE 1
+## CHANGE 2
 ##
 ## .. todo:: We need this type definition only for declaring builtin functions
 ##    via ``bifcl``. We should extend ``bifcl`` to understand composite types
