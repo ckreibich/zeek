@@ -27,7 +27,7 @@
 	url = https://github.com/zeek/bifcl
 [submodule "doc"]
 	path = doc
-	url = https://github.com/zeek/zeek-docs
+	url = https://github.com/ckreibich/zeek-docs
 [submodule "auxil/paraglob"]
 	path = auxil/paraglob
 	url = https://github.com/zeek/paraglob
