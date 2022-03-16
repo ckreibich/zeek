@@ -11,7 +11,7 @@ defaults:
 
 jobs:
   generate:
-    if: github.repository == 'zeek/zeek'
+    if: github.repository == 'ckreibich/zeek'
     runs-on: ubuntu-18.04
 
     steps:
@@ -78,7 +78,7 @@ jobs:
         if: github.event_name == 'schedule'
         run: |
           cd doc
-          git remote set-url origin "https://zeek-bot:${{ secrets.ZEEK_BOT_TOKEN }}@github.com/zeek/zeek-docs"
+          git remote set-url origin "https://ckreibich:${{ secrets.ZEEK_BOT_TOKEN }}@github.com/ckreibich/zeek-docs"
           git add scripts/ script-reference/
           git status
           git commit -m "Generate docs" && git push || /bin/true
@@ -88,20 +88,7 @@ jobs:
         run: |
           git config --global user.name zeek-bot
           git config --global user.email info@zeek.org
-          git remote add auth "https://zeek-bot:${{ secrets.ZEEK_BOT_TOKEN }}@github.com/zeek/zeek"
+          git remote add auth "https://ckreibich:${{ secrets.ZEEK_BOT_TOKEN }}@github.com/ckreibich/zeek"
           git add doc
           git status
           git commit -m 'Update doc submodule [nomail] [skip ci]' && git push auth master || /bin/true
-
-      - name: Send email
-        if: failure()
-        uses: dawidd6/action-send-mail@v3.4.1
-        with:
-          server_address: ${{secrets.SMTP_HOST}}
-          server_port: ${{secrets.SMTP_PORT}}
-          username: ${{secrets.SMTP_USER}}
-          password: ${{secrets.SMTP_PASS}}
-          subject: generate-docs Github Action failed!
-          body: generate-docs job of ${{github.repository}} Failed! See https://github.com/${{github.repository}}/actions/runs/${{github.run_id}} for details.
-          to: ${{secrets.MAIL_TO}}
-          from: Github Actions <${{secrets.MAIL_FROM}}>
