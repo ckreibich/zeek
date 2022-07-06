@@ -14,8 +14,8 @@ defaults:
     shell: bash
 
 env:
-  IMAGE_NAME: zeek-image.tar
-  IMAGE_FILE: /tmp/zeek-image.tar
+  IMAGE_NAME: zeek-image-${{ github.sha }}.tar
+  IMAGE_FILE: /tmp/zeek-image-${{ github.sha }}.tar
   IMAGE_PATH: /tmp
 
 permissions:
@@ -28,15 +28,34 @@ jobs:
       TEST_TAG: zeek:latest
       CONFFLAGS: --generator=Ninja --build-type=Release
     steps:
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v3
+        continue-on-error: true
+        with:
+          name: ${{ env.IMAGE_NAME }}
+          path: ${{ env.IMAGE_PATH }}
+
+      - name: Load Docker image
+        id: docker_load
+        run: |
+          if [ -f ${{ env.IMAGE_FILE }} ]; then
+            docker load --input ${{ env.IMAGE_FILE }}
+            docker tag zeek:latest zeektest:latest
+            echo "::set-output name=image::present"
+          fi
+
       - uses: actions/checkout@v2
+        if: ${{ steps.docker_load.outputs.image != 'present' }}
         with:
           submodules: "recursive"
 
       # Create and boot a loader. This will e.g., provide caching
       # so we avoid rebuilds of the same image after this step.
       - uses: docker/setup-buildx-action@v2
+        if: ${{ steps.docker_load.outputs.image != 'present' }}
 
       - name: Build image
+        if: ${{ steps.docker_load.outputs.image != 'present' }}
         uses: docker/build-push-action@v3
         with:
           context: ./
@@ -47,16 +66,20 @@ jobs:
           tags: ${{ env.TEST_TAG }}
 
       - name: Run btests
+        if: ${{ steps.docker_load.outputs.image != 'present' }}
         run: make -C docker/btest
 
       - name: Save image tarball
+        if: ${{ steps.docker_load.outputs.image != 'present' }}
         run: docker save -o ${{ env.IMAGE_FILE }} ${{ env.TEST_TAG }}
 
       - name: Get version
+        if: ${{ steps.docker_load.outputs.image != 'present' }}
         id: version
         run: echo "::set-output name=RELEASE_VERSION::$(cat VERSION)"
 
       - name: Compute target tag
+        if: ${{ steps.docker_load.outputs.image != 'present' }}
         id: target
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.RELEASE_VERSION }}
@@ -76,38 +99,17 @@ jobs:
             echo "::set-output name=tag::zeek:${RELEASE_VERSION}"
           fi
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v1
-        # Don't publish on forks. Also note that secrets for the login are not
-        # available for pull requests, so trigger on pushes only.
-        if: github.repository == 'zeek/zeek' && github.event_name == 'push'
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Push image
-        # Only publish if we did compute a tag.
-        if: github.repository == 'zeek/zeek' && github.event_name == 'push' && steps.target.outputs.tag != ''
-        uses: docker/build-push-action@v3
-        with:
-          context: ./
-          file: docker/Dockerfile
-          build-args: |
-            CONFFLAGS=${{ env.CONFFLAGS }}
-          push: true
-          tags: |
-            zeekurity/${{ steps.target.outputs.tag }}
-
       - name: Preserve image artifact
+        if: ${{ steps.docker_load.outputs.image != 'present' }}
         uses: actions/upload-artifact@v2
         with:
           name: ${{ env.IMAGE_NAME }}
           path: ${{ env.IMAGE_FILE }}
-          retention-days: 1
+          retention-days: 7
 
       - name: Preserve btest artifacts
+        if: ${{ failure() && steps.docker_load.outputs.image != 'present' }}
         uses: actions/upload-artifact@v2
-        if: failure()
         with:
           name: docker-btest
           path: docker/btest/.tmp
