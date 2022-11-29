@@ -1,0 +1,14 @@
+name: "Zeek CodeQL config"
+
+queries:
+  - uses: security-and-quality
+
+query-filters:
+  - exclude:
+      id: cpp/include-non-header
+  - exclude:
+      id: cpp/long-switch
+  - exclude:
+      id: cpp/commented-out-code
+  - exclude:
+      id: cpp/use-of-goto

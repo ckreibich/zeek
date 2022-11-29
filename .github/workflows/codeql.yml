@@ -1,0 +1,42 @@
+name: "CodeQL"
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  schedule:
+    - cron: '47 21 * * 5'
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+    - uses: actions/setup-python@v4
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: cpp
+        config-file: ./.github/codeql/codeql-config.yml
+
+    - run: |
+        sudo apt-get -q update
+        sudo apt-get install -q -y --no-install-recommends bind9 bison cmake flex g++ gcc libfl2 libfl-dev libmaxminddb-dev libpcap-dev libssl-dev libz-dev make python3-minimal python3.9-dev swig ninja-build python3-pip
+        ./configure --disable-archiver --disable-auxtools --disable-spicy
+        make -j $(nproc)
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:cpp"
