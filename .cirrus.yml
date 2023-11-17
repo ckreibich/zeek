@@ -679,9 +679,6 @@ cluster_testing_docker_builder:
         $CIRRUS_BRANCH == 'master' || $CIRRUS_BRANCH =~ 'release/.*' || $CIRRUS_TAG != '' )
   env:
     CIRRUS_LOG_TIMESTAMP: true
-  install_deps_script:
-    # The cluster tests depend on jq and docker_builder doesn't have that :-(
-    - apt-get -q update && apt-get install -y --no-install-recommends jq
   sync_btest_script: git submodule update --init ./auxil/btest/
   checkout_script:
     - set -x; cd testing/external/ && git clone https://github.com/zeek/zeek-testing-cluster.git && make checkout-repos
