@@ -52,6 +52,7 @@
 #include "supervisor.bif.func_h"
 #include "packet_analysis.bif.func_h"
 #include "CPP-load.bif.func_h"
+#include "mmdb.bif.func_h"
 
 #include "zeek.bif.func_def"
 #include "communityid.bif.func_def"
@@ -62,6 +63,7 @@
 #include "supervisor.bif.func_def"
 #include "packet_analysis.bif.func_def"
 #include "CPP-load.bif.func_def"
+#include "mmdb.bif.func_def"
 // clang-format on
 
 extern RETSIGTYPE sig_handler(int signo);
@@ -1047,6 +1049,7 @@ void init_primary_bifs() {
 
     var_sizes = id::find_type("var_sizes")->AsTableType();
 
+#include "mmdb.bif.func_init"
 #include "CPP-load.bif.func_init"
 #include "communityid.bif.func_init"
 #include "option.bif.func_init"
