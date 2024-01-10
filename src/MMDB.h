@@ -12,23 +12,40 @@ namespace zeek {
 
 class MMDB {
 public:
-    MMDB(const char* filename, struct stat info);
+    MMDB();
+    virtual ~MMDB();
 
-    ~MMDB();
+    virtual bool Open() = 0;
+    bool OpenFile(const char* filename);
+    void Close();
+    bool IsOpen() const { return mmdb.filename != nullptr; }
+    void Check();
 
     bool Lookup(const zeek::IPAddr& addr, MMDB_lookup_result_s& result);
-    bool StaleDB();
     const char* Filename();
 
+    void BuiltinError(const char* msg);
     static void ReportMsg(const char* format, ...);
 
 private:
     MMDB_lookup_result_s Lookup(const struct sockaddr* const sa);
+    bool StaleDB();
 
     MMDB_s mmdb;
     struct stat file_info;
+    bool did_error;
     bool lookup_error;
     double last_check;
+};
+
+class LocDB : public MMDB {
+public:
+    bool Open();
+};
+
+class AsnDB : public MMDB {
+public:
+    bool Open();
 };
 
 #endif // USE_GEOIP
