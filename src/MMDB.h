@@ -16,13 +16,15 @@ public:
 
     ~MMDB();
 
-    MMDB_lookup_result_s Lookup(const struct sockaddr* const sa);
+    bool Lookup(const zeek::IPAddr& addr, MMDB_lookup_result_s& result);
     bool StaleDB();
     const char* Filename();
 
     static void ReportMsg(const char* format, ...);
 
 private:
+    MMDB_lookup_result_s Lookup(const struct sockaddr* const sa);
+
     MMDB_s mmdb;
     struct stat file_info;
     bool lookup_error;
