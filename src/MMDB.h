@@ -1,0 +1,40 @@
+// See the file "COPYING" in the main distribution directory for copyright.
+
+#pragma once
+
+#include <maxminddb.h>
+
+#include "zeek/Val.h"
+
+namespace zeek {
+
+#ifdef USE_GEOIP
+
+class MMDB {
+public:
+    MMDB(const char* filename, struct stat info);
+
+    ~MMDB();
+
+    MMDB_lookup_result_s Lookup(const struct sockaddr* const sa);
+    bool StaleDB();
+    const char* Filename();
+
+    static void ReportMsg(const char* format, ...);
+
+private:
+    MMDB_s mmdb;
+    struct stat file_info;
+    bool lookup_error;
+    double last_check;
+};
+
+#endif // USE_GEOIP
+
+ValPtr mmdb_open_location_db(zeek::StringVal* filename);
+ValPtr mmdb_open_asn_db(zeek::StringVal* filename);
+
+RecordValPtr mmdb_lookup_location(zeek::AddrVal* addr);
+RecordValPtr mmdb_lookup_autonomous_system(zeek::AddrVal* addr);
+
+} // namespace zeek
