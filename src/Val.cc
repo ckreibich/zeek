@@ -330,7 +330,10 @@ TableValPtr Val::GetRecordFields() {
 }
 
 // This is a static method in this file to avoid including rapidjson's headers in Val.h because
-// they're huge.
+// they're huge. For records, two arguments control the JSON result: only_loggable, if true,
+// skips any fields that don't have the &log attribute. The regular expression matcher, if
+// given, is used to strip the first match on any record field name in the resulting output.
+// See the to_json() BiF for context.
 static void BuildJSON(json::detail::NullDoubleWriter& writer, Val* val, bool only_loggable = false,
                       RE_Matcher* re = nullptr, const string& key = "") {
     if ( ! key.empty() )
