@@ -19,9 +19,14 @@ redef Broker::log_topic = Cluster::rr_log_topic;
 # somewhere in the ZEEKPATH.  The only thing in the file should be the
 # cluster definition in the :zeek:id:`Cluster::nodes` variable.
 
-@if ( ! Supervisor::__init_cluster() )
-# When running a supervised cluster, Cluster::nodes is instead populated
-# from the internal C++-layer directly via the above BIF.
+# When running a supervised cluster, populate Cluster::nodes from the
+# supervisor's node configuration. Otherwise, fall back to using
+# cluster-layout.zeek.
+@if ( Supervisor::is_supervised() && Cluster::init_nodes_from_supervisor() )
+@if ( Cluster::get_node_count(Cluster::LOGGER) > 0 )
+redef Cluster::manager_is_logger = F;
+@endif
+@else
 @load cluster-layout
 @endif
 
