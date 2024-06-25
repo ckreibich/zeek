@@ -17,6 +17,7 @@
 
 @load base/frameworks/control
 @load base/frameworks/broker
+@load base/frameworks/supervisor/api
 
 module Cluster;
 
@@ -295,10 +296,60 @@ export {
 	## Returns: a topic string that may used to send a message exclusively to
 	##          a given cluster node.
 	global nodeid_topic: function(id: string): string;
+
+	## Populates the current node's :zeek:id:`Cluster::nodes` table from the
+	## supervisor's node configuration. This function is only valid for
+	## supervised nodes, and meant for internal use. You should not need it.
+	##
+	## Returns: true if initialization completed, false otherwise.
+	global init_nodes_from_supervisor: function(): bool;
 }
 
 # Track active nodes per type.
 global active_node_ids: table[NodeType] of set[string];
+
+function init_nodes_from_supervisor(): bool
+	{
+	local config = Supervisor::node();
+
+	if ( |config$cluster| == 0 )
+		return F;
+
+	local rolemap: table[Supervisor::ClusterRole] of NodeType = {
+		[Supervisor::LOGGER] = LOGGER,
+		[Supervisor::MANAGER] = MANAGER,
+		[Supervisor::PROXY] = PROXY,
+		[Supervisor::WORKER] = WORKER,
+	};
+
+	local manager_name = "";
+	local cnode: Node;
+	local typ: NodeType = NONE;
+
+	for ( node_name, endp in config$cluster )
+		{
+		if ( endp$role == Supervisor::MANAGER )
+			manager_name = node_name;
+		}
+
+	for ( node_name, endp in config$cluster )
+		{
+		if ( endp$role in rolemap )
+			typ = rolemap[endp$role];
+
+		cnode = record($node_type=typ, $ip=endp$host, $p=endp$p);
+@pragma push ignore-deprecations
+		if ( endp?$interface )
+			cnode$interface = endp$interface;
+@pragma pop ignore-deprecations
+		if ( |manager_name| > 0 && cnode$node_type != MANAGER )
+			cnode$manager = manager_name;
+
+		nodes[node_name] = cnode;
+		}
+
+	return T;
+	}
 
 function nodes_with_type(node_type: NodeType): vector of NamedNode
 	{
