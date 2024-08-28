@@ -1161,6 +1161,33 @@ type geo_autonomous_system: record {
 	organization: string &optional;	##< Associated organization.
 } &log;
 
+## Performs a geo-lookup of an IP address.
+##
+## The default implementation requires Zeek to be built with ``libmaxminddb``,
+## and will return a record with no fields assigned otherwise.
+##
+## a: The IP address to lookup.
+##
+## Returns: A record with country, region, city, latitude, and longitude.
+##
+## .. zeek:see:: lookup_autonomous_system
+global lookup_location: function(a: addr): geo_location &redef;
+
+## Performs an lookup of AS number & organization of an IP address.
+##
+## The default implementation requires Zeek to be built with ``libmaxminddb``,
+## and will return a record with no fields assigned otherwise.
+##
+## a: The IP address to lookup.
+##
+## Returns: A record with autonomous system number and organization that contains *a*.
+##
+## .. zeek:see:: lookup_location
+global lookup_autonomous_system: function(a: addr): geo_autonomous_system &redef;
+
+function lookup_location(a: addr): geo_location { return []; }
+function lookup_autonomous_system(a: addr): geo_autonomous_system { return []; }
+
 ## The directory containing MaxMind DB (.mmdb) files to use for GeoIP support.
 const mmdb_dir: string = "" &redef;
 

@@ -28,28 +28,28 @@ function mmdb_open_asn_db%(f: string%) : bool
 	return zeek::mmdb_open_asn_db(StringValPtr(NewRef(), f));
 	%}
 
-## Performs a geo-lookup of an IP address.
+## Performs a geo-lookup of an IP address from a MaxMind database.
 ## Requires Zeek to be built with ``libmaxminddb``.
 ##
 ## a: The IP address to lookup.
 ##
 ## Returns: A record with country, region, city, latitude, and longitude.
 ##
-## .. zeek:see:: lookup_autonomous_system
-function lookup_location%(a: addr%) : geo_location
+## .. zeek:see:: lookup_location lookup_autonomous_system mmdb_lookup_autonomous_system
+function mmdb_lookup_location%(a: addr%) : geo_location
 	%{
 	return zeek::mmdb_lookup_location(AddrValPtr(NewRef(), a));
 	%}
 
-## Performs an lookup of AS number & organization of an IP address.
+## Performs an lookup of AS number & organization of an IP address from a MaxMind database.
 ## Requires Zeek to be built with ``libmaxminddb``.
 ##
 ## a: The IP address to lookup.
 ##
 ## Returns: A record with autonomous system number and organization that contains *a*.
 ##
-## .. zeek:see:: lookup_location
-function lookup_autonomous_system%(a: addr%) : geo_autonomous_system
+## .. zeek:see:: lookup_location lookup_autonomous_system mmdb_lookup_location
+function mmdb_lookup_autonomous_system%(a: addr%) : geo_autonomous_system
 	%{
 	return zeek::mmdb_lookup_autonomous_system(AddrValPtr(NewRef(), a));
 	%}

@@ -31,3 +31,10 @@
 # execution would be another idea.
 @if ( __init_secondary_bifs() )
 @endif
+
+# Default GeoIP lookups to our MMDB implementation at this point.  Do this
+# here since those implementations aren't available at declaration time in
+# init-bare.zeek, and the lookup functionality has always been available in
+# bare mode (which loads this file, but not init-default.zeek).
+redef lookup_location = mmdb_lookup_location;
+redef lookup_autonomous_system = mmdb_lookup_autonomous_system;
