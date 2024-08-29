@@ -314,6 +314,42 @@ RecordValPtr mmdb_lookup_location(const AddrValPtr& addr) {
     return location;
 }
 
+RecordValPtr ipinfo_lookup_location(const AddrValPtr& addr) {
+    static auto geo_location = zeek::id::find_type<zeek::RecordType>("geo_location");
+    auto location = zeek::make_intrusive<zeek::RecordVal>(geo_location);
+
+#ifdef USE_GEOIP
+    if ( ! mmdb_loc.EnsureLoaded() )
+        return location;
+
+    MMDB_lookup_result_s result;
+
+    if ( mmdb_loc.Lookup(addr->AsAddr(), result) ) {
+        MMDB_entry_data_s entry_data;
+        int status;
+
+        // Get Country ISO Code -- not much else to work with in the ipinfo.io layout.
+        status = MMDB_get_value(&result.entry, &entry_data, "country", nullptr);
+        location->Assign(0, mmdb_getvalue(&entry_data, status, MMDB_DATA_TYPE_UTF8_STRING));
+
+        return location;
+    }
+
+#else // not USE_GEOIP
+    static int missing_geoip_reported = 0;
+
+    if ( ! missing_geoip_reported ) {
+        zeek::emit_builtin_error("Zeek was not configured for GeoIP support");
+        missing_geoip_reported = 1;
+    }
+#endif
+
+    // We can get here even if we have MMDB support if we weren't
+    // able to initialize it or it didn't return any information for
+    // the address.
+    return location;
+}
+
 RecordValPtr mmdb_lookup_autonomous_system(const AddrValPtr& addr) {
     static auto geo_autonomous_system = zeek::id::find_type<zeek::RecordType>("geo_autonomous_system");
     auto autonomous_system = zeek::make_intrusive<zeek::RecordVal>(geo_autonomous_system);
@@ -334,6 +370,52 @@ RecordValPtr mmdb_lookup_autonomous_system(const AddrValPtr& addr) {
 
         // Get Autonomous System Organization
         status = MMDB_get_value(&result.entry, &entry_data, "autonomous_system_organization", nullptr);
+        autonomous_system->Assign(1, mmdb_getvalue(&entry_data, status, MMDB_DATA_TYPE_UTF8_STRING));
+
+        return autonomous_system;
+    }
+
+#else // not USE_GEOIP
+    static int missing_geoip_reported = 0;
+
+    if ( ! missing_geoip_reported ) {
+        zeek::emit_builtin_error("Zeek was not configured for GeoIP ASN support");
+        missing_geoip_reported = 1;
+    }
+#endif
+
+    // We can get here even if we have GeoIP support, if we weren't
+    // able to initialize it or it didn't return any information for
+    // the address.
+    return autonomous_system;
+}
+
+RecordValPtr ipinfo_lookup_autonomous_system(const AddrValPtr& addr) {
+    static auto geo_autonomous_system = zeek::id::find_type<zeek::RecordType>("geo_autonomous_system");
+    auto autonomous_system = zeek::make_intrusive<zeek::RecordVal>(geo_autonomous_system);
+
+#ifdef USE_GEOIP
+    if ( ! mmdb_asn.EnsureLoaded() )
+        return autonomous_system;
+
+    MMDB_lookup_result_s result;
+
+    if ( mmdb_asn.Lookup(addr->AsAddr(), result) ) {
+        MMDB_entry_data_s entry_data;
+        int status;
+
+        // Get Autonomous System Number. Ipinfo.io's format stores this as a
+        // string prefixed with "AS" ("AS1234"), so we need to parse the number.
+        status = MMDB_get_value(&result.entry, &entry_data, "asn", nullptr);
+        auto asn_string_val = mmdb_getvalue(&entry_data, status, MMDB_DATA_TYPE_UTF8_STRING);
+        std::string asn_string{asn_string_val->AsStringVal()->ToStdStringView().substr(2)};
+        errno = 0;
+        uint64_t asn = strtoul(asn_string.c_str(), nullptr, 10);
+        if ( errno == 0 )
+            autonomous_system->Assign(0, val_mgr->Count(asn));
+
+        // Get Autonomous System Organization
+        status = MMDB_get_value(&result.entry, &entry_data, "name", nullptr);
         autonomous_system->Assign(1, mmdb_getvalue(&entry_data, status, MMDB_DATA_TYPE_UTF8_STRING));
 
         return autonomous_system;

@@ -85,7 +85,13 @@ public:
 ValPtr mmdb_open_location_db(const StringValPtr& filename);
 ValPtr mmdb_open_asn_db(const StringValPtr& filename);
 
+// Lookup implementations for MaxMind's own data layout:
 RecordValPtr mmdb_lookup_location(const AddrValPtr& addr);
 RecordValPtr mmdb_lookup_autonomous_system(const AddrValPtr& addr);
+
+// Lookup implementations for ipinfo.io's data layout:
+RecordValPtr ipinfo_lookup_location(const AddrValPtr& addr);
+RecordValPtr ipinfo_lookup_autonomous_system(const AddrValPtr& addr);
+
 
 } // namespace zeek
