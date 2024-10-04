@@ -1,3 +1,20 @@
+7.1.0-dev.381 | 2024-10-04 10:31:38 -0700
+
+  * GH-215: POP3: Rework unbounded pending command fix (Arne Welzel, Corelight)
+
+    Processing out-of-order commands or finishing commands based on invalid
+    server responses resulted in inconsistent analyzer state, potentially
+    triggering null pointer references for crafted traffic.
+
+    This commit reworks cf9fe91705f878e94ae14b373e5e5ea212273e2f such that
+    too many pending commands are simply discarded, rather than any attempt
+    being made to process them. Further, invalid server responses do not
+    result in command completion anymore.
+
+    Test PCAP was crafted based on traffic produced by the OSS-Fuzz reproducer.
+
+    Closes #215
+
 7.1.0-dev.379 | 2024-10-04 13:34:31 +0200
 
   * Add missing newline in `spicyz` usage message (Benjamin Bannier, Corelight)
