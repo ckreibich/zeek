@@ -77,7 +77,6 @@ benchmark_only_if_template: &BENCHMARK_ONLY_IF_TEMPLATE
       $CIRRUS_PR_LABELS =~ '.*benchmark.*' )
 
 ci_template: &CI_TEMPLATE
-  << : *BUILDS_ONLY_IF_TEMPLATE
 
   # Default timeout is 60 minutes, Cirrus hard limit is 120 minutes for free
   # tasks, so may as well ask for full time.
