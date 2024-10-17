@@ -15,6 +15,7 @@
 ##!     Due to ``cluster-layout.zeek`` being loaded very early, it is easy to
 ##!     introduce circular loading issues.
 
+@load base/frameworks/telemetry
 @load base/frameworks/control
 @load base/frameworks/broker
 
@@ -293,6 +294,14 @@ export {
 # Track active nodes per type.
 global active_node_ids: table[NodeType] of set[string];
 
+global broker_packpressure_overflows_cf = Telemetry::register_counter_family([
+    $prefix="zeek",
+    $name="broker-backpressure-overflows",
+    $unit="",
+    $label_names=vector("peer"),
+    $help_text="Number of Broker peering drops due to a neighbor falling too far behind in message I/O",
+]);
+
 function nodes_with_type(node_type: NodeType): vector of NamedNode
 	{
 	local rval: vector of NamedNode = vector();
@@ -443,6 +452,7 @@ event Broker::peer_removed(endpoint: Broker::EndpointInfo, msg: string)
 
 	Cluster::log(fmt("removed %s%s:%s (%s) due to backpressure overflow",
 	                 peerdesc, endpoint$network$address, endpoint$network$bound_port, id));
+	Telemetry::counter_family_inc(broker_backpressure_overflows_cf, vector(id));
 	}
 
 event Broker::peer_lost(endpoint: Broker::EndpointInfo, msg: string)
@@ -462,6 +472,7 @@ event Broker::peer_lost(endpoint: Broker::EndpointInfo, msg: string)
 
 	Cluster::log(fmt("lost %s%s:%s (%s) due to backpressure overflow",
 	                 peerdesc, endpoint$network$address, endpoint$network$bound_port, id));
+	Telemetry::counter_family_inc(broker_backpressure_overflows_cf, vector(id));
 	}
 
 event node_down(name: string, id: string) &priority=10
