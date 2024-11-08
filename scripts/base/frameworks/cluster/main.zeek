@@ -280,6 +280,14 @@ export {
 	## Returns: a topic string that may used to send a message exclusively to
 	##          a given cluster node.
 	global nodeid_topic: function(id: string): string;
+
+	## Retrieve the cluster-level name of a node based on its Broker ID.
+	##
+	## id: the Broker ID of a peer.
+	##
+	## Returns: the cluster's name of the given peer, if known, otherwise
+	##          the empty string.
+	global nodeid_to_name: function(id: string): string;
 }
 
 # Track active nodes per type.
@@ -359,6 +367,17 @@ function nodeid_topic(id: string): string
 	return nodeid_topic_prefix + id + "/";
 	}
 
+function nodeid_to_name(id: string): string
+	{
+	for ( node_name, n in nodes )
+		{
+		if ( n?$id && n$id == id )
+			return node_name;
+		}
+
+	return "";
+	}
+
 event Cluster::hello(name: string, id: string) &priority=10
 	{
 	if ( name !in nodes )
@@ -405,6 +424,44 @@ event Broker::peer_lost(endpoint: Broker::EndpointInfo, msg: string) &priority=1
 			break;
 			}
 		}
+	}
+
+event Broker::peer_removed(endpoint: Broker::EndpointInfo, msg: string)
+	{
+	if (! endpoint?$network || "caf::sec::backpressure_overflow")
+		return;
+
+	local peerdesc = "non-cluster peer ";
+	local id = endpoint$id;
+	local name = id_to_name(endpoint$id);
+
+	if ( name != "" )
+		{
+		peerdesc = "";
+		id = name;
+		}
+
+	Cluster::log(fmt("removed %s%s:%s (%s) due to backpressure overflow",
+	                 peerdesc, endpoint$network$address, endpoint$network$bound_port, id));
+	}
+
+event Broker::peer_lost(endpoint: Broker::EndpointInfo, msg: string)
+	{
+	if (! endpoint?$network || "caf::sec::backpressure_overflow")
+		return;
+
+	local peerdesc = "non-cluster peer ";
+	local id = endpoint$id;
+	local name = id_to_name(endpoint$id);
+
+	if ( name != "" )
+		{
+		peerdesc = "";
+		id = name;
+		}
+
+	Cluster::log(fmt("lost %s%s:%s (%s) due to backpressure overflow",
+	                 peerdesc, endpoint$network$address, endpoint$network$bound_port, id));
 	}
 
 event node_down(name: string, id: string) &priority=10
