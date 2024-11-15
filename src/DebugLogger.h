@@ -95,6 +95,7 @@ public:
 
 private:
     FILE* file;
+    bool all;
     bool verbose;
 
     struct Stream {
