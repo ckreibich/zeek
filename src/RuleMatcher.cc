@@ -658,7 +658,7 @@ RuleMatcher::MIME_Matches* RuleMatcher::Match(RuleFileMagicState* state, const u
     }
 
     // Find rules for which patterns have matched.
-    set<Rule*> rule_matches;
+    vector<Rule*> rule_matches;
 
     for ( AcceptingMatchSet::const_iterator it = accepted_matches.begin(); it != accepted_matches.end(); ++it ) {
         auto [aidx, mpos] = *it;
@@ -666,10 +666,10 @@ RuleMatcher::MIME_Matches* RuleMatcher::Match(RuleFileMagicState* state, const u
         Rule* r = Rule::rule_table[aidx - 1];
 
         if ( AllRulePatternsMatched(r, mpos, accepted_matches) )
-            rule_matches.insert(r);
+            rule_matches.emplace_back(r);
     }
 
-    for ( set<Rule*>::const_iterator it = rule_matches.begin(); it != rule_matches.end(); ++it ) {
+    for ( vector<Rule*>::const_iterator it = rule_matches.begin(); it != rule_matches.end(); ++it ) {
         Rule* r = *it;
 
         for ( const auto& action : r->actions ) {
@@ -842,7 +842,7 @@ void RuleMatcher::Match(RuleEndpointState* state, Rule::PatternType type, const 
     // matched patterns per connection (which is a plausible assumption).
 
     // Find rules for which patterns have matched.
-    set<pair<Rule*, MatchPos>> rule_matches;
+    vector<pair<Rule*, MatchPos>> rule_matches;
 
     for ( AcceptingMatchSet::const_iterator it = accepted_matches.begin(); it != accepted_matches.end(); ++it ) {
         AcceptIdx aidx = it->first;
@@ -851,12 +851,12 @@ void RuleMatcher::Match(RuleEndpointState* state, Rule::PatternType type, const 
         Rule* r = Rule::rule_table[aidx - 1];
 
         if ( AllRulePatternsMatched(r, mpos, accepted_matches) )
-            rule_matches.insert(make_pair(r, mpos));
+            rule_matches.emplace_back(make_pair(r, mpos));
     }
 
     // Check which of the matching rules really belong to any of our nodes.
 
-    for ( set<pair<Rule*, MatchPos>>::const_iterator it = rule_matches.begin(); it != rule_matches.end(); ++it ) {
+    for ( vector<pair<Rule*, MatchPos>>::const_iterator it = rule_matches.begin(); it != rule_matches.end(); ++it ) {
         auto [r, match_end_pos] = *it;
 
         DBG_LOG(DBG_RULES, "Accepted rule: %s", r->id);
