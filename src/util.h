@@ -561,6 +561,11 @@ struct NofileUpdates {
 // Returns a NofileUpdates struct summarizing the outcome.
 NofileUpdates nofile_cap_limits();
 
+// Adjusts the maximum number of open file descriptors to the system's allowed
+// maximum value. Exits Zeek with an error if it fails in the process. If the
+// allowed maximum isn't capped, this function does nothing.
+void nofile_maximize();
+
 
 // Class to be used as a third argument for STL maps to be able to use
 // char*'s as keys. Otherwise the pointer values will be compared instead of

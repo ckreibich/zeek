@@ -2622,6 +2622,23 @@ NofileUpdates nofile_cap_limits() {
             nofile_max_str != nullptr};
 }
 
+void nofile_maximize() {
+    struct rlimit rl;
+    if ( getrlimit(RLIMIT_NOFILE, &rl) < 0 )
+        reporter->FatalError("nofile_maximize(): getrlimit failed");
+
+    if ( rl.rlim_max == RLIM_INFINITY ) {
+        // Don't try raising the current limit.
+        return;
+    }
+
+    // See if we can raise the current to the maximum.
+    rl.rlim_cur = rl.rlim_max;
+
+    if ( setrlimit(RLIMIT_NOFILE, &rl) < 0 )
+        reporter->FatalError("nofile_maximize(): setrlimit failed");
+}
+
 
 } // namespace zeek::util
 
