@@ -35,24 +35,6 @@ namespace zeek {
 
 std::list<std::pair<std::string, File*>> File::open_files;
 
-// Maximizes the number of open file descriptors.
-static void maximize_num_fds() {
-    struct rlimit rl;
-    if ( getrlimit(RLIMIT_NOFILE, &rl) < 0 )
-        reporter->FatalError("maximize_num_fds(): getrlimit failed");
-
-    if ( rl.rlim_max == RLIM_INFINITY ) {
-        // Don't try raising the current limit.
-        return;
-    }
-
-    // See if we can raise the current to the maximum.
-    rl.rlim_cur = rl.rlim_max;
-
-    if ( setrlimit(RLIMIT_NOFILE, &rl) < 0 )
-        reporter->FatalError("maximize_num_fds(): setrlimit failed");
-}
-
 File::File(FILE* arg_f) {
     Init();
     f = arg_f;
@@ -115,7 +97,7 @@ bool File::Open(FILE* file, const char* mode) {
 
     if ( ! fds_maximized ) {
         // Haven't initialized yet.
-        maximize_num_fds();
+        util::nofile_maximize();
         fds_maximized = true;
     }
 
