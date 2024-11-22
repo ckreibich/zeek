@@ -2578,6 +2578,51 @@ TEST_CASE("util approx_equal") {
  */
 bool approx_equal(double a, double b, double tolerance) { return std::abs(a - b) < std::abs(tolerance); }
 
+NofileUpdates nofile_cap_limits() {
+    struct rlimit rl;
+
+    if ( getrlimit(RLIMIT_NOFILE, &rl) < 0 ) {
+        // We likely don't yet have a reporter when running this.
+        fprintf(stderr, "nofile_cap_limits(): getrlimit failed, %s\n", strerror(errno));
+        exit(1);
+    }
+
+    rlim_t orig_cur = rl.rlim_cur;
+    rlim_t orig_max = rl.rlim_max;
+    rlim_t safe_max = 1024 * 1024;
+
+    const char* nofile_max_str = getenv("ZEEK_NOFILE_MAX");
+
+    if ( nofile_max_str ) {
+        char* end = nullptr;
+        unsigned long nofile_max = strtoul(nofile_max_str, &end, 10);
+
+        if ( nofile_max_str[0] != '\0' && (end == nofile_max_str || end[0] != '\0') ) {
+            fprintf(stderr, "ZEEK_NOFILE_MAX must be a non-negative integer\n");
+            exit(1);
+        }
+
+        safe_max = nofile_max;
+    }
+
+    if ( safe_max > 0 && safe_max < rl.rlim_max ) {
+        rl.rlim_max = safe_max;
+
+        if ( safe_max < rl.rlim_cur )
+            rl.rlim_cur = safe_max;
+
+        if ( setrlimit(RLIMIT_NOFILE, &rl) < 0 ) {
+            fprintf(stderr, "nofile_cap_limits(): setrlimit to %lu/%lu failed, %s\n", (unsigned long)rl.rlim_cur,
+                    (unsigned long)rl.rlim_max, strerror(errno));
+            exit(1);
+        }
+    }
+
+    return {(uint64_t)orig_cur, (uint64_t)orig_max, (uint64_t)rl.rlim_cur, (uint64_t)rl.rlim_max,
+            nofile_max_str != nullptr};
+}
+
+
 } // namespace zeek::util
 
 extern "C" void out_of_memory(const char* where) {
