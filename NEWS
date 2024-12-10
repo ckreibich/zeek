@@ -39,8 +39,56 @@ New Functionality
   This entire feature can be disabled by loading the new
   ``policy/protocols/conn/disable-unknown-ip-proto-support.zeek`` policy script.
 
+- Broker's message I/O buffering now operates on per-peering granularity at the
+  sender (it was previously global) and provides configurable overflow handling
+  when a fast sender overwhelms a slow receiver, via the following new constants
+  in the ``Broker`` module:
+
+	const peer_buffer_size = 2048 &redef;
+	const peer_overflow_policy = "disconnect" &redef;
+	const web_socket_buffer_size = 512 &redef;
+	const web_socket_overflow_policy = "disconnect" &redef;
+
+  When a send buffer overflows (i.e., it is full when a node tries to transmit
+  another message), the sender may unpeer the slow receiver (policy
+  ``disconnect``, the default), drop the newest message in the buffer
+  (``drop_newest``), or drop the oldest (``drop_oldest``). Buffer sizes are
+  measured in number of messages, not bytes. Note that "sender" and "receiver"
+  here are independent of the direction in which Zeek originally established the
+  peering. After disconnects Zeek automatically tries to re-establish peering
+  with the slow node, in case it recovers.
+
+  Zeek notifies you in two ways of the fact that such disconnects occur:
+
+    * A cluster.log entry indicates for the sending node that a slow peered node
+      has been removed. Here node ``worker01`` has removed a peered ``proxy01`:
+
+	1733468802.626622  worker01  removed due to backpressure overflow: 127.0.0.1:42204/tcp (proxy01)
+
+    * A labeled counter metric ``zeek_broker_backpressure_disconnects_total`` in
+      the telemetry framework tracks the number of times such disconnects have
+      occurred between respective nodes. For example this indicates the same
+      disconnect as above:
+
+	zeek_broker_backpressure_disconnects_total{endpoint="worker01",peer="proxy01"} 1
+
+  To implement custom handling of a backpressure-induced disconnect, add a
+  ``Broker::peer_removed`` event, as follows:
+
+	event Broker::peer_removed(endpoint: Broker::EndpointInfo, msg: string)
+		{
+		if ( "caf::sec::backpressure_overflow" !in msg )
+                	return;
+
+		# The local node has disconnected the given endpoint,
+		# add your logic here.
+                }
+
+  These new policies fix a problem in which misbehaving nodes could trigger
+  cascading "lockups" of nodes, each ceasing to transmit any messages.
+
 - Zeek now includes a PostgreSQL protocol analyzer. This analyzer is enabled
-  by default. The analyzer's events and its ``postgresql.log`` should be
+  by default. The analyzer's events and its ``postgresql.log`` should 
   considered preliminary and experimental until the arrival of Zeek's next
   long-term-stable release (8.0).
 
