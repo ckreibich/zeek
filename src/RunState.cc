@@ -37,6 +37,7 @@ extern "C" {
 #include "zeek/packet_analysis/Manager.h"
 #include "zeek/plugin/Manager.h"
 #include "zeek/session/Manager.h"
+#include "zeek/conntuple/Manager.h"
 
 static double last_watchdog_proc_time = 0.0; // value of above during last watchdog
 extern int signal_val;
@@ -205,6 +206,7 @@ void init_run(const std::optional<std::string>& interface, const std::optional<s
     zeek::detail::init_ip_addr_anonymizers();
 
     session_mgr = new session::Manager();
+    conntuple_mgr = new conntuple::Manager();
 
     if ( do_watchdog ) {
         // Set up the watchdog to make sure we don't wedge.

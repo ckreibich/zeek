@@ -1,0 +1,34 @@
+#pragma once
+
+#include <memory>
+
+#include "zeek/IntrusivePtr.h"
+#include "zeek/IPAddr.h"
+#include "zeek/Conn.h"
+
+namespace zeek {
+
+class Packet;
+class RecordVal;
+using RecordValPtr = IntrusivePtr<RecordVal>;
+
+namespace conntuple {
+
+class Manager {
+public:
+    Manager();
+    virtual ~Manager();
+
+    virtual ConnTuplePtr GetTuple(const Packet* pkt);
+    virtual zeek::detail::ConnKeyPtr GetKey(const ConnTuple& tuple);
+    virtual void FillVal(RecordValPtr& tuple);
+
+private:
+};
+
+} // namespace conntuple
+
+// Manager for connection tuple instantiations.
+extern conntuple::Manager* conntuple_mgr;
+
+} // namespace zeek
