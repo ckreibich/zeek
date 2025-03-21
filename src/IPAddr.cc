@@ -34,7 +34,7 @@ ConnKey& ConnKey::operator=(const ConnKey& rhs) {
     // Because of padding in the object, this needs to memset to clear out
     // the extra memory used by padding. Otherwise, the session key stuff
     // doesn't work quite right.
-    memset(this, 0, sizeof(ConnKey));
+    memset(this, 0, sizeof(*this));
 
     memcpy(&ip1, &rhs.ip1, sizeof(in6_addr));
     memcpy(&ip2, &rhs.ip2, sizeof(in6_addr));
