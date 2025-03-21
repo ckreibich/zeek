@@ -165,6 +165,11 @@ void Connection::NextPacket(double t, bool is_orig, const IP_Hdr* ip, int len, i
     run_state::current_pkt = nullptr;
 }
 
+session::detail::Key Connection::SessionKey(bool copy) const {
+    return key->SessionKey();
+    // return session::detail::Key{key.get(), sizeof(*key), session::detail::Key::CONNECTION_KEY_TYPE};
+}
+
 bool Connection::IsReuse(double t, const u_char* pkt) { return adapter && adapter->IsReuse(t, pkt); }
 
 namespace {

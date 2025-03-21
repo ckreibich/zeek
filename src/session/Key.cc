@@ -6,13 +6,13 @@
 
 namespace zeek::session::detail {
 
-Key::Key(const void* session, size_t size, size_t type, bool copy) : size(size), type(type) {
+Key::Key(const void* session, size_t size, size_t type, bool copy, bool adopt) : size(size), type(type) {
     data = reinterpret_cast<const uint8_t*>(session);
 
     if ( copy )
         CopyData();
 
-    copied = copy;
+    copied = copy || adopt;
 }
 
 Key::Key(Key&& rhs) {

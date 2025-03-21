@@ -106,7 +106,7 @@ Connection* Manager::FindConnection(Val* v) {
 }
 
 Connection* Manager::FindConnection(const zeek::detail::ConnKey& conn_key) {
-    detail::Key key(&conn_key, sizeof(conn_key), detail::Key::CONNECTION_KEY_TYPE, false);
+    detail::Key key{conn_key.SessionKey()};
 
     auto it = session_map.find(key);
     if ( it != session_map.end() )
