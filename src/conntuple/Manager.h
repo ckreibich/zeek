@@ -26,6 +26,11 @@ public:
 private:
 };
 
+class VlanAwareManager : public Manager {
+    ConnTuplePtr GetTuple(const Packet* pkt) override;
+    zeek::detail::ConnKeyPtr GetKey(const ConnTuple& tuple) override;
+};
+
 } // namespace conntuple
 
 // Manager for connection tuple instantiations.
