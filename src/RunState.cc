@@ -206,7 +206,7 @@ void init_run(const std::optional<std::string>& interface, const std::optional<s
     zeek::detail::init_ip_addr_anonymizers();
 
     session_mgr = new session::Manager();
-    conntuple_mgr = new conntuple::Manager();
+    conntuple_mgr = new conntuple::VlanAwareManager();
 
     if ( do_watchdog ) {
         // Set up the watchdog to make sure we don't wedge.
