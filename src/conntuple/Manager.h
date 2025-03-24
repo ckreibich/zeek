@@ -20,7 +20,10 @@ public:
     virtual ~Manager();
 
     virtual ConnTuplePtr GetTuple(const Packet* pkt);
+
     virtual zeek::detail::ConnKeyPtr GetKey(const ConnTuple& tuple);
+    virtual zeek::detail::ConnKeyPtr GetKey(Val* v);
+
     virtual void FillVal(detail::ConnKeyPtr key, RecordValPtr& tuple) {};
 
 private:
@@ -28,7 +31,10 @@ private:
 
 class VlanAwareManager : public Manager {
     ConnTuplePtr GetTuple(const Packet* pkt) override;
+
     zeek::detail::ConnKeyPtr GetKey(const ConnTuple& tuple) override;
+    zeek::detail::ConnKeyPtr GetKey(Val* v) override;
+
     void FillVal(detail::ConnKeyPtr key, RecordValPtr& tuple) override;
 };
 
