@@ -206,7 +206,7 @@ const RecordValPtr& Connection::GetVal() {
         id_val->Assign(3, val_mgr->Port(ntohs(resp_port), prot_type));
         id_val->Assign(4, KeyProto());
 
-        zeek::conntuple_mgr->FillVal(id_val);
+        zeek::conntuple_mgr->FillVal(key, id_val);
 
         auto orig_endp = make_intrusive<RecordVal>(id::endpoint);
         orig_endp->Assign(0, 0);

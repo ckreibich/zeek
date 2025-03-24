@@ -21,8 +21,6 @@ zeek::detail::ConnKeyPtr Manager::GetKey(const ConnTuple& tuple) {
     return std::make_shared<zeek::detail::ConnKey>(tuple);
 }
 
-void Manager::FillVal(RecordValPtr& tuple) {}
-
 
 struct VlanConnTuple : public ConnTuple {
     uint32_t vlan = 0;
@@ -64,5 +62,13 @@ zeek::detail::ConnKeyPtr VlanAwareManager::GetKey(const ConnTuple& tuple) {
     return res;
 }
 
+void VlanAwareManager::FillVal(detail::ConnKeyPtr key, RecordValPtr& tuple) {
+    if ( tuple->NumFields() <= 5 )
+        return;
+
+    auto vkey = dynamic_cast<VlanConnKey*>(key.get());
+
+    tuple->Assign(5, vkey->vlan);
+}
 
 } // namespace zeek::conntuple
