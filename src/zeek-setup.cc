@@ -977,7 +977,7 @@ SetupResult setup(int argc, char** argv, Options* zopts) {
         }
     }
 
-    if ( options.parse_only ) {
+    if ( detail::parse_only ) {
         if ( analysis_options.usage_issues > 0 )
             analyze_scripts(options.no_unused_warnings);
 
