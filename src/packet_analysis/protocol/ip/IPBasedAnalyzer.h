@@ -186,6 +186,7 @@ private:
      * @param pkt The packet associated with the new connection.
      */
     zeek::Connection* NewConn(const ConnTuple* id, const zeek::detail::ConnKey& key, const Packet* pkt);
+    zeek::Connection* NewConn(const ConnTuple* id, const zeek::detail::ConnKeyPtr key, const Packet* pkt);
 
     void BuildSessionAnalyzerTree(Connection* conn);
 

@@ -62,6 +62,7 @@
 #include "zeek/plugin/Manager.h"
 #include "zeek/script_opt/ScriptOpt.h"
 #include "zeek/session/Manager.h"
+#include "zeek/conntuple/Manager.h"
 #ifdef HAVE_SPICY
 #include "zeek/spicy/manager.h"
 #endif
@@ -417,6 +418,7 @@ static void terminate_zeek() {
     delete spicy_mgr;
 #endif
     delete storage_mgr;
+    delete conntuple_mgr;
 
     // free the global scope
     pop_scope();

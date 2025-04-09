@@ -17,6 +17,7 @@
 #include "zeek/analyzer/Analyzer.h"
 #include "zeek/analyzer/Manager.h"
 #include "zeek/analyzer/protocol/pia/PIA.h"
+#include "zeek/conntuple/Manager.h"
 #include "zeek/iosource/IOSource.h"
 #include "zeek/packet_analysis/protocol/ip/SessionAdapter.h"
 #include "zeek/packet_analysis/protocol/tcp/TCP.h"
@@ -27,7 +28,7 @@ namespace zeek {
 uint64_t Connection::total_connections = 0;
 uint64_t Connection::current_connections = 0;
 
-Connection::Connection(const detail::ConnKey& k, double t, const ConnTuple* id, uint32_t flow, const Packet* pkt)
+Connection::Connection(const detail::ConnKeyPtr k, double t, const ConnTuple* id, uint32_t flow, const Packet* pkt)
     : Session(t, connection_timeout, connection_status_update, detail::connection_status_update_interval), key(k) {
     orig_addr = id->src_addr;
     resp_addr = id->dst_addr;
@@ -74,6 +75,9 @@ Connection::Connection(const detail::ConnKey& k, double t, const ConnTuple* id, 
 
     encapsulation = pkt->encap;
 }
+
+Connection::Connection(const detail::ConnKey& k, double t, const ConnTuple* id, uint32_t flow, const Packet* pkt)
+    : Connection(std::make_shared<zeek::detail::ConnKey>(k), t, id, flow, pkt) {}
 
 Connection::~Connection() {
     if ( ! finished )
@@ -161,6 +165,11 @@ void Connection::NextPacket(double t, bool is_orig, const IP_Hdr* ip, int len, i
     run_state::current_pkt = nullptr;
 }
 
+session::detail::Key Connection::SessionKey(bool copy) const {
+    return key->SessionKey();
+    // return session::detail::Key{key.get(), sizeof(*key), session::detail::Key::CONNECTION_KEY_TYPE};
+}
+
 bool Connection::IsReuse(double t, const u_char* pkt) { return adapter && adapter->IsReuse(t, pkt); }
 
 namespace {
@@ -196,6 +205,8 @@ const RecordValPtr& Connection::GetVal() {
         id_val->Assign(2, make_intrusive<AddrVal>(resp_addr));
         id_val->Assign(3, val_mgr->Port(ntohs(resp_port), prot_type));
         id_val->Assign(4, KeyProto());
+
+        zeek::conntuple_mgr->FillVal(key, id_val);
 
         auto orig_endp = make_intrusive<RecordVal>(id::endpoint);
         orig_endp->Assign(0, 0);

@@ -38,7 +38,7 @@ public:
      * during construction. This defaults to false because normally the only time
      * data is copied into the key is when it's inserted into the session map.
      */
-    Key(const void* key_data, size_t size, size_t type, bool copy = false);
+    Key(const void* key_data, size_t size, size_t type, bool copy = false, bool adopt = false);
 
     ~Key();
 
