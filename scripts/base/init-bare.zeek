@@ -579,6 +579,12 @@ const io_poll_interval_live = 10 &redef;
 ## while testing, but should be used sparingly.
 const running_under_test: bool = F &redef;
 
+module ConnTuple;
+
+export {
+	const builder = ConnTuple::CONNTUPLE_FIVETUPLE &redef;
+}
+
 module FTP;
 
 export {
