@@ -56,8 +56,6 @@ event send_any()
 	local e = Cluster::make_event(ping, i, type_name(val), val);
 	Cluster::publish_hrw(Cluster::worker_pool, cat(i), e);
 	++i;
-
-	schedule 0.05sec { send_any() };
 	}
 
 event pong(c: count, what: string, val: any)
@@ -65,10 +63,15 @@ event pong(c: count, what: string, val: any)
 	++pongs;
 	print "got pong", pongs, "for ping", c, what, type_name(val), val;
 
-	# We send 5 pings in 3 different variations and
-	# get 4 one pong for each.
+	# We send 5 pings in 3 different ways, and every ping is answered in 4
+	# ways, for a total of 60 expected pongs. Every ping batch for one type
+	# involves 12 pongs. Wait for a batch to complete before sending the
+	# next, to avoid races in the output.
 	if ( pongs == 60 )
 		Cluster::publish(Cluster::worker_topic, finish);
+	else if ( pongs > 0 && pongs % 12 == 0 )
+		schedule 0.05sec { send_any() };
+
 	}
 
 event Cluster::node_up(name: string, id: string)
