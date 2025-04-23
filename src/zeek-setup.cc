@@ -701,8 +701,9 @@ SetupResult setup(int argc, char** argv, Options* zopts) {
 
     // Now that we're past any help output, warn if we reduced the fd limits:
     if ( nofile_updates.did_default_adjustment() )
-        reporter->Warning("reduced open file descriptor limits (soft/hard %lu/%lu -> %lu/%lu)", nofile_updates.orig_cur,
-                          nofile_updates.orig_max, nofile_updates.new_cur, nofile_updates.new_max);
+        reporter->Warning("reduced open file descriptor limits (soft/hard %lu/%lu -> %lu/%lu)",
+                          (unsigned long)nofile_updates.orig_cur, (unsigned long)nofile_updates.orig_max,
+                          (unsigned long)nofile_updates.new_cur, (unsigned long)nofile_updates.new_max);
 
     init_event_handlers();
 
