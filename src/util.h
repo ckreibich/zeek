@@ -503,8 +503,6 @@ extern void safe_close(int fd);
 
 // Versions of realloc/malloc which abort() on out of memory
 
-// Versions of realloc/malloc which abort() on out of memory
-
 inline void* safe_realloc(void* ptr, size_t size) {
     ptr = realloc(ptr, size);
     if ( size && ! ptr )
@@ -545,6 +543,42 @@ int memory_size_align(size_t offset, size_t size);
 // Returns total memory allocations and (if available) amount actually
 // handed out by malloc.
 extern void get_memory_usage(uint64_t* total, uint64_t* malloced);
+
+// File descriptor limits.
+
+struct NofileUpdates {
+    uint64_t orig_cur = 0;
+    uint64_t orig_max = 0;
+    uint64_t new_cur = 0;
+    uint64_t new_max = 0;
+
+    // Whether the ZEEK_NOFILE_MAX env variable affected fd limit adjustment:
+    bool user_configured = false;
+
+    // Predicate that indicates whether a limit adjustment occurred by default,
+    // without the user customizing via ZEEK_NOFILE_MAX.
+    bool did_default_adjustment() { return ! user_configured && (orig_cur > new_cur || orig_max > new_max); }
+};
+
+// Checks for an unreasonably large maximum allowable number of open file
+// descriptors (as in "ulimit -n -H"), and caps that limit if excessive. The
+// default "sane" limit is 1M (1024*1024) fds. If the currently effective limit
+// (as in "ulimit -n") exceeds this limit, it too gets reduced.
+
+// You can override the limit by setting the ZEEK_NOFILE_MAX environment
+// variable to the desired number. Setting it to an empty string or 0 disables
+// the capping mechanism.
+//
+// Exits Zeek with an error if this adjustment procedure fails.
+//
+// Returns a NofileUpdates struct summarizing the outcome.
+NofileUpdates nofile_cap_limits();
+
+// Adjusts the maximum number of open file descriptors to the system's allowed
+// maximum value. Exits Zeek with an error if it fails in the process. If the
+// allowed maximum isn't capped, this function does nothing.
+void nofile_maximize();
+
 
 // Class to be used as a third argument for STL maps to be able to use
 // char*'s as keys. Otherwise the pointer values will be compared instead of

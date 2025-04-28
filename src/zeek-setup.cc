@@ -508,6 +508,15 @@ SetupResult setup(int argc, char** argv, Options* zopts) {
     if ( options.run_unit_tests )
         options.deterministic_mode = true;
 
+    // Cap the allowable open file descriptor limits. We do this primarily to
+    // hedge against libkqueue's allocate-state-for-every-possible-fd behavior,
+    // which can lead to gigabytes of memory in high-max environments, like
+    // containerd's default. This needs to happen before we create the iosource
+    // manager, which initializes kqueue.
+    //
+    // For context see: https://github.com/mheily/libkqueue/issues/153
+    auto nofile_updates = util::nofile_cap_limits();
+
     auto stem = Supervisor::CreateStem(options.supervisor_mode);
 
     if ( Supervisor::ThisNode() ) {
@@ -713,6 +722,12 @@ SetupResult setup(int argc, char** argv, Options* zopts) {
         usage(argv[0]);
         exit(0);
     }
+
+    // Now that we're past any help output, warn if we reduced the fd limits:
+    if ( nofile_updates.did_default_adjustment() )
+        reporter->Warning("reduced open file descriptor limits (soft/hard %lu/%lu -> %lu/%lu)",
+                          (unsigned long)nofile_updates.orig_cur, (unsigned long)nofile_updates.orig_max,
+                          (unsigned long)nofile_updates.new_cur, (unsigned long)nofile_updates.new_max);
 
     init_event_handlers();
 
