@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "zeek/session/Key.h"
 #include "zeek/threading/SerialTypes.h"
 
 using in4_addr = in_addr;
@@ -35,23 +36,22 @@ public:
 
     ConnKey(const IPAddr& src, const IPAddr& dst, uint16_t src_port, uint16_t dst_port, uint16_t proto, bool one_way);
     ConnKey(const ConnTuple& conn);
-    ConnKey(const ConnKey& rhs) { *this = rhs; }
     ConnKey(Val* v);
 
-    bool operator<(const ConnKey& rhs) const { return memcmp(this, &rhs, sizeof(ConnKey)) < 0; }
-    bool operator<=(const ConnKey& rhs) const { return memcmp(this, &rhs, sizeof(ConnKey)) <= 0; }
-    bool operator==(const ConnKey& rhs) const { return memcmp(this, &rhs, sizeof(ConnKey)) == 0; }
-    bool operator!=(const ConnKey& rhs) const { return memcmp(this, &rhs, sizeof(ConnKey)) != 0; }
-    bool operator>=(const ConnKey& rhs) const { return memcmp(this, &rhs, sizeof(ConnKey)) >= 0; }
-    bool operator>(const ConnKey& rhs) const { return memcmp(this, &rhs, sizeof(ConnKey)) > 0; }
+    session::detail::Key SessionKey() const;
+    virtual size_t PackedSize() const;
+    virtual size_t Pack(uint8_t* data, size_t size) const;
 
-    ConnKey& operator=(const ConnKey& rhs);
+    bool operator<(const ConnKey& rhs) const { return SessionKey() < rhs.SessionKey(); }
+    bool operator==(const ConnKey& rhs) const { return SessionKey() == rhs.SessionKey(); }
 
     bool Valid() const { return transport <= 0xFF; };
 
 private:
     void Init(const IPAddr& src, const IPAddr& dst, uint16_t src_port, uint16_t dst_port, uint16_t proto, bool one_way);
 };
+
+using ConnKeyPtr = std::shared_ptr<ConnKey>;
 
 } // namespace detail
 
