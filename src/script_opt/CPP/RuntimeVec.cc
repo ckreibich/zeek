@@ -42,6 +42,8 @@ static VectorTypePtr base_vector_type__CPP(const VectorTypePtr& vt, bool is_bool
     }
 }
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
+
 // The kernel used for unary vector operations.
 #define VEC_OP1_KERNEL(accessor, type, op)                                                                             \
     for ( unsigned int i = 0; i < v->Size(); ++i ) {                                                                   \
@@ -56,6 +58,7 @@ static VectorTypePtr base_vector_type__CPP(const VectorTypePtr& vt, bool is_bool
 // is an optional kernel to use for vectors whose underlying type
 // is "double".  It needs to be optional because C++ will (rightfully)
 // complain about applying certain C++ unary operations to doubles.
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define VEC_OP1(name, op, double_kernel)                                                                               \
     VectorValPtr vec_op_##name##__CPP(const VectorValPtr& v, const TypePtr& t) {                                       \
         auto vt = base_vector_type__CPP(cast_intrusive<VectorType>(t));                                                \
@@ -79,6 +82,7 @@ static VectorTypePtr base_vector_type__CPP(const VectorTypePtr& vt, bool is_bool
                                                                                                                        \
         return v_result;                                                                                               \
     }
+// NOLINTEND(bugprone-macro-parentheses)
 
 // Instantiates a double_kernel for a given operation.
 #define VEC_OP1_WITH_DOUBLE(name, op)                                                                                  \
@@ -88,6 +92,8 @@ static VectorTypePtr base_vector_type__CPP(const VectorTypePtr& vt, bool is_bool
             break;                                                                                                     \
         })
 
+// NOLINTEND(cppcoreguidelines-macro-usage)
+
 // The unary operations supported for vectors.
 VEC_OP1_WITH_DOUBLE(pos, +)
 VEC_OP1_WITH_DOUBLE(neg, -)
@@ -96,6 +102,8 @@ VEC_OP1(comp, ~, )
 
 // A kernel for applying a binary operation element-by-element to two
 // vectors of a given low-level type.
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define VEC_OP2_KERNEL(accessor, type, op, zero_check)                                                                 \
     for ( unsigned int i = 0; i < v1->Size(); ++i ) {                                                                  \
         auto v1_i = v1->ValAt(i);                                                                                      \
@@ -107,6 +115,7 @@ VEC_OP1(comp, ~, )
                 v_result->Assign(i, make_intrusive<type>(v1_i->accessor() op v2_i->accessor()));                       \
         }                                                                                                              \
     }
+// NOLINTEND(bugprone-macro-parentheses)
 
 // Analogous to VEC_OP1, instantiates a function for a given binary operation,
 // with customizable kernels for "int" and "double" operations.
@@ -163,6 +172,7 @@ VEC_OP1(comp, ~, )
 			break;                                                                                 \
 		},                                                                                         \
 		zero_check)
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 // The binary operations supported for vectors.
 VEC_OP2_WITH_DOUBLE(add, +, 0)
@@ -180,6 +190,7 @@ VEC_OP2_WITH_INT(rshift, >>, , 0)
 
 // A version of VEC_OP2 that instead supports relational operations, so
 // the result type is always vector-of-bool.
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define VEC_REL_OP(name, op)                                                                                           \
     VectorValPtr vec_op_##name##__CPP(const VectorValPtr& v1, const VectorValPtr& v2) {                                \
         if ( ! check_vec_sizes__CPP(v1, v2) )                                                                          \

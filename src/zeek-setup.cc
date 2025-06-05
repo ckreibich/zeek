@@ -54,6 +54,7 @@
 #include "zeek/broker/Manager.h"
 #include "zeek/cluster/Backend.h"
 #include "zeek/cluster/Manager.h"
+#include "zeek/conntuple/Manager.h"
 #include "zeek/file_analysis/Manager.h"
 #include "zeek/input.h"
 #include "zeek/input/Manager.h"
@@ -161,6 +162,7 @@ void do_ssl_deinit() {
 
 zeek::ValManager* zeek::val_mgr = nullptr;
 zeek::packet_analysis::Manager* zeek::packet_mgr = nullptr;
+zeek::conntuple::Manager* zeek::conntuple_mgr = nullptr;
 zeek::analyzer::Manager* zeek::analyzer_mgr = nullptr;
 zeek::plugin::Manager* zeek::plugin_mgr = nullptr;
 
@@ -408,6 +410,7 @@ static void terminate_zeek() {
 
     delete zeekygen_mgr;
     delete packet_mgr;
+    delete conntuple_mgr;
     delete analyzer_mgr;
     delete file_mgr;
     delete cluster::manager;
@@ -686,6 +689,7 @@ SetupResult setup(int argc, char** argv, Options* zopts) {
     iosource_mgr = new iosource::Manager();
     event_registry = new EventRegistry();
     packet_mgr = new packet_analysis::Manager();
+    conntuple_mgr = new conntuple::Manager();
     analyzer_mgr = new analyzer::Manager();
     log_mgr = new logging::Manager();
     input_mgr = new input::Manager();
@@ -711,7 +715,7 @@ SetupResult setup(int argc, char** argv, Options* zopts) {
     plugin_mgr->ExtendZeekPathForPlugins();
 
     for ( const auto& x : requested_plugins )
-        plugin_mgr->ActivateDynamicPlugin(std::move(x));
+        plugin_mgr->ActivateDynamicPlugin(x);
 
     plugin_mgr->ActivateDynamicPlugins(! options.bare_mode);
 
@@ -834,6 +838,7 @@ SetupResult setup(int argc, char** argv, Options* zopts) {
 
         RecordType::InitPostScript();
 
+        conntuple_mgr->InitPostScript();
         telemetry_mgr->InitPostScript();
         thread_mgr->InitPostScript();
         iosource_mgr->InitPostScript();
@@ -942,6 +947,7 @@ SetupResult setup(int argc, char** argv, Options* zopts) {
     }
 
     std::vector<SignatureFile> all_signature_files;
+    all_signature_files.reserve(options.signature_files.size() + zeek::detail::sig_files.size());
 
     // Append signature files given on the command line
     for ( const auto& sf : options.signature_files )
@@ -1018,7 +1024,7 @@ SetupResult setup(int argc, char** argv, Options* zopts) {
     }
 
     // Cooperate with nohup(1).
-    if ( (oldhandler = setsignal(SIGHUP, sig_handler)) != SIG_DFL )
+    if ( oldhandler = setsignal(SIGHUP, sig_handler); oldhandler != SIG_DFL )
         (void)setsignal(SIGHUP, oldhandler);
 
     // If we were priming the DNS cache (i.e. -P was passed as an argument), flush anything

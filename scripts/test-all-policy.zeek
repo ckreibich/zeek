@@ -59,6 +59,7 @@
 @load frameworks/intel/seen/file-names.zeek
 @load frameworks/intel/seen/http-headers.zeek
 @load frameworks/intel/seen/http-url.zeek
+@load frameworks/intel/seen/manage-event-groups.zeek
 @load frameworks/intel/seen/pubkey-hashes.zeek
 @load frameworks/intel/seen/smb-filenames.zeek
 @load frameworks/intel/seen/smtp-url-extraction.zeek
@@ -109,6 +110,7 @@
 @load protocols/conn/mac-logging.zeek
 @load protocols/conn/vlan-logging.zeek
 @load protocols/conn/weirds.zeek
+#@load protocols/conntuple/vlan.zeek
 #@load protocols/conn/speculative-service.zeek
 @load protocols/dhcp/msg-orig.zeek
 @load protocols/dhcp/software.zeek

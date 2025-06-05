@@ -11,8 +11,8 @@
 #include "zeek/analyzer/protocol/bittorrent/events.bif.h"
 #include "zeek/analyzer/protocol/tcp/TCP_Reassembler.h"
 
-#define FMT_INT "%" PRId64
-#define FMT_UINT "%" PRIu64
+#define FMT_INT "%" SCNd64
+#define FMT_UINT "%" SCNu64
 
 namespace zeek::analyzer::bittorrent {
 
@@ -456,7 +456,7 @@ void BitTorrentTracker_Analyzer::ResponseBody(void) {
     }
 }
 
-int BitTorrentTracker_Analyzer::ResponseParseBenc(void) {
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define VIOLATION_IF(expr, msg)                                                                                        \
     {                                                                                                                  \
         if ( expr ) {                                                                                                  \
@@ -466,12 +466,12 @@ int BitTorrentTracker_Analyzer::ResponseParseBenc(void) {
         }                                                                                                              \
     }
 
-#define INC_COUNT                                                                                                      \
-    {                                                                                                                  \
-        unsigned int count = benc_count.back();                                                                        \
-        benc_count.pop_back();                                                                                         \
-        benc_count.push_back(count + 1);                                                                               \
-    }
+int BitTorrentTracker_Analyzer::ResponseParseBenc(void) {
+    auto INC_COUNT = [this]() {
+        unsigned int count = benc_count.back();
+        benc_count.pop_back();
+        benc_count.push_back(count + 1);
+    };
 
     for ( unsigned int len = res_buf_len - (res_buf_pos - res_buf); len; --len, ++res_buf_pos ) {
         switch ( benc_state ) {
@@ -551,7 +551,7 @@ int BitTorrentTracker_Analyzer::ResponseParseBenc(void) {
                         benc_count.pop_back();
 
                         if ( benc_stack.size() )
-                            INC_COUNT
+                            INC_COUNT();
                         else { // benc parsing successful
                             ++res_buf_pos;
                             return 0;
@@ -612,7 +612,7 @@ int BitTorrentTracker_Analyzer::ResponseParseBenc(void) {
                     else
                         VIOLATION_IF(1, "BitTorrentTracker: no valid bencoding")
 
-                    INC_COUNT
+                    INC_COUNT();
                     benc_state = detail::BENC_STATE_EMPTY;
                 }
 
@@ -686,7 +686,7 @@ int BitTorrentTracker_Analyzer::ResponseParseBenc(void) {
                         ++len;
                     }
 
-                    INC_COUNT
+                    INC_COUNT();
                     benc_state = detail::BENC_STATE_EMPTY;
                 }
                 break;

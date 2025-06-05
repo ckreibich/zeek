@@ -340,7 +340,9 @@ Manager::Filter::~Filter() {
     for ( int i = 0; i < num_fields; ++i )
         delete fields[i];
 
-    free(fields);
+    // Static cast this to void* to avoid a clang-tidy warning about converting from the
+    // double-pointer to void*
+    free(static_cast<void*>(fields));
 
     Unref(path_val);
     Unref(config);
@@ -766,7 +768,7 @@ bool Manager::TraverseRecord(Stream* stream, Filter* filter, RecordType* rt, Tab
 
         // Add the ext prefix if this is an ext field.
         if ( j < num_ext_fields )
-            new_path = filter->ext_prefix + new_path;
+            new_path = string{filter->ext_prefix}.append(new_path);
 
         if ( t->InternalType() == TYPE_INTERNAL_OTHER ) {
             if ( t->Tag() == TYPE_RECORD ) {
@@ -777,19 +779,8 @@ bool Manager::TraverseRecord(Stream* stream, Filter* filter, RecordType* rt, Tab
                 continue;
             }
 
-            else if ( t->Tag() == TYPE_TABLE && t->AsTableType()->IsSet() ) {
-                // That's ok, we handle it below.
-            }
-
-            else if ( t->Tag() == TYPE_VECTOR ) {
-                // That's ok, we handle it below.
-            }
-
-            else if ( t->Tag() == TYPE_FILE ) {
-                // That's ok, we handle it below.
-            }
-
-            else if ( t->Tag() == TYPE_FUNC ) {
+            else if ( (t->Tag() == TYPE_TABLE && t->AsTableType()->IsSet()) || t->Tag() == TYPE_VECTOR ||
+                      t->Tag() == TYPE_FILE || t->Tag() == TYPE_FUNC ) {
                 // That's ok, we handle it below.
             }
 
@@ -820,9 +811,11 @@ bool Manager::TraverseRecord(Stream* stream, Filter* filter, RecordType* rt, Tab
         }
 
         // Alright, we want this field.
-        filter->indices.push_back(new_indices);
+        filter->indices.push_back(std::move(new_indices));
 
-        void* tmp = realloc(filter->fields, sizeof(threading::Field*) * (filter->num_fields + 1));
+        // Static cast this to void* to avoid a clang-tidy warning about converting from the
+        // double-pointer to void*
+        void* tmp = realloc(static_cast<void*>(filter->fields), sizeof(threading::Field*) * (filter->num_fields + 1));
 
         if ( ! tmp ) {
             reporter->Error("out of memory in add_filter");

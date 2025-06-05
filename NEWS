@@ -15,8 +15,45 @@ Breaking Changes
   files. We tested builds of all of the existing third-party packages and only noticed one
   or two failures, but there is a possibility for breakage related to this cleanup.
 
+- Network timestamps are not added to events by default anymore. Use the following
+  redef line to enable them:
+
+	redef EventMetadata::add_network_timestamp = T;
+
+  The background is that event metadata has become more generic and may incur
+  a small overhead when enabled. There's not enough users of network timestamp
+  metadata to justify the complexity of treating it separate.
+
+- The ASCII writer's ``JSON::TS_MILLIS`` timestamp format was changed to produce
+  signed integers. This matters for the representation for timestamps that are
+  before the UNIX epoch. These are now written as negative values, while previously
+  the negative value was interpreted as an unsigned integer, resulting in very large
+  timestamps, potentially causing issues for downstream consumers.
+
+  If you prefer to always have unsigned values, it's possible to revert to the previous
+  behavior by setting:
+
+	redef LogAscii::json_timestamps = JSON::TS_MILLIS_UNSIGNED;
+
+- The ``current_event_time()`` builtin function as well as ``Event::Time()``
+  and ``EventMgr::CurrentEventTime()`` now return ``-1.0`` if no timestamp
+  metadata is available for the current event, or if no event is being
+  dispatched. Previously this would've been 0.0, or the timestamp of the previously
+  dispatched event.
+
+- Missing network timestamp metadata on remote events is not set to the local
+  network time anymore by default. This potentially hid useful debugging information
+  about another node not sending timestamp metadata. The old behavior can be
+  re-enabled as follows:
+
+	redef EventMetadata::add_missing_remote_network_timestamp = T;
+
 New Functionality
 -----------------
+
+- Generic event metadata support. A new ``EventMetadata`` module was added allowing
+  to register generic event metadata types and accessing the current event's metadata
+  using the functions ``current()`` and ``current_all()`` of this module.
 
 - A new plugin hook, ``HookPublishEvent()``, has been added for intercepting
   publishing of Zeek events. This hook may be used for monitoring purposes,
@@ -33,6 +70,47 @@ New Functionality
 	                      const std::string& topic,
 	                      zeek::cluster::detail::Event& event);
 
+- Zeek now includes the Redis protocol analyzer from the evantypanski/spicy-redis
+  project (https://github.com/evantypanski/spicy-redis). This analyzer is enabled
+  by default. This analyzer logs Redis commands and their associated replies in
+  ``redis.log``.
+
+  To disable the analyzer in case of issues, use the following snippet:
+
+	redef Analyzer::disabled_analyzers += {
+		Analyzer::ANALYZER_REDIS,
+	};
+
+- The FTP analyzer now supports explicit TLS via AUTH TLS.
+
+- Two new script-level hooks in the Intel framework have been added.
+
+	hook indicator_inserted(indicator_value: string, indicator_type: Intel::Type)
+
+	hook indicator_removed(indicator_value: string, indicator_type: Intel::Type)
+
+  These are reliably invoked on worker and manager nodes the first time an
+  indicator value is inserted into the store and once it has been completely
+  removed from the store.
+
+- The ``frameworks/intel/seen`` scripts have been annotated with event groups
+  and a new ``frameworks/intel/seen/manage-event-groups`` policy script added.
+
+  The motivation is to allow Zeek distributors to load the ``intel/seen`` scripts
+  by default without incurring their event overhead when no Intel indicators are
+  loaded. Corresponding event handlers are enabled once the first Intel indicator
+  of a given ``Intel::Type`` is added. Event handlers are disabled when the last
+  indicator is removed, again.
+
+  Note that the ``manage-event-groups`` script interacts with the ``Intel::seen_policy``
+  hook: If no indicators for a given ``Intel::Type`` are loaded, the ``Intel::seen_policy``
+  will not be invoked as the event handlers extracting indicators aren't executed.
+
+  If you rely on the ``Intel::seen_policy`` hook to be invoked regardless of the
+  contents of the Intel store, do not load the ``manage-event-groups`` or set:
+
+	redef Intel::manage_seen_event_groups = F;
+
 Changed Functionality
 ---------------------
 
@@ -47,8 +125,16 @@ Changed Functionality
   found/picked-up by default. Use --with-krb5 for pointing at a custom librkb5
   installation.
 
+- The ``$listen_host`` configuration for ``Cluster::listen_websocket()``'s
+  ``WebSocketServerOptions`` was deprecated. Use the new ``$listen_addr`` field
+  instead.
+
 Removed Functionality
 ---------------------
+
+- The ``--with-bind`` argument for ``configure`` was removed. We removed the need for the
+  BIND library from our CMake setup in the v7.2 release, but this non-functional argument
+  was left behind.
 
 Deprecated Functionality
 ------------------------
@@ -64,6 +150,13 @@ Deprecated Functionality
   ``notice.log`` entries.
 
   The replacement script doesn't populate the ``email_body_sections`` anymore either.
+
+- The ``zeek::Event()`` constructor was deprecated. Use ``event_mgr::Enqueue()``
+  or ``event_mgr::Dispatch()`` instead.
+
+- Passing ``ts`` as the last argument to ``EventMgr::Enqueue()`` has been deprecated
+  and will lead to compile time warnings. Use ``EventMgr::Enqueue(detail::MetadataVectorPtr meta, ...)``
+  for populating ``meta`` accordingly.
 
 Zeek 7.2.0
 ==========

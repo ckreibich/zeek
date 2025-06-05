@@ -19,6 +19,7 @@ asan_sanitizer_config: &ASAN_SANITIZER_CONFIG --build-type=debug --disable-broke
 ubsan_sanitizer_config: &UBSAN_SANITIZER_CONFIG --build-type=debug --disable-broker-tests --sanitizers=undefined --enable-fuzzers --ccache --enable-werror
 tsan_sanitizer_config: &TSAN_SANITIZER_CONFIG --build-type=debug --disable-broker-tests --sanitizers=thread --enable-fuzzers --ccache --enable-werror
 macos_config: &MACOS_CONFIG --build-type=release --disable-broker-tests --prefix=$CIRRUS_WORKING_DIR/install --ccache --enable-werror --with-krb5=/opt/homebrew/opt/krb5
+clang_tidy_config: &CLANG_TIDY_CONFIG --build-type=debug --disable-broker-tests --prefix=$CIRRUS_WORKING_DIR/install --ccache --enable-werror --enable-clang-tidy
 
 resources_template: &RESOURCES_TEMPLATE
   cpu: *CPUS
@@ -67,7 +68,13 @@ skip_task_on_pr: &SKIP_TASK_ON_PR
   # Skip this task on PRs if it does not have the CI: Full label,
   # it continues to run for direct pushes to master/release.
   skip: >
-    ! ( $CIRRUS_PR == '' || $CIRRUS_PR_LABELS =~ '.*CI: Full.*' )
+    ( ! ($CIRRUS_PR == '' || $CIRRUS_PR_LABELS =~ '.*CI: Full.*') || $CIRRUS_PR_LABELS =~ '.*CI: Skip All' )
+
+skip_cluster_test_on_pr: &SKIP_CLUSTER_TEST_ON_PR
+  # Skip this task on PRs if it does not have the CI: Full label,
+  # it continues to run for direct pushes to master/release.
+  skip: >
+    ( ! ($CIRRUS_PR == '' || $CIRRUS_PR_LABELS =~ '.*CI: (Full|Cluster Test).*') || $CIRRUS_PR_LABELS =~ '.*CI: Skip All' )
 
 zam_skip_task_on_pr: &ZAM_SKIP_TASK_ON_PR
   # Skip this task on PRs unless it has the "CI: Full" or "CI: ZAM" label
@@ -75,7 +82,7 @@ zam_skip_task_on_pr: &ZAM_SKIP_TASK_ON_PR
   # It continues to run for direct pushes to master/release, as
   # CIRRUS_PR will be empty.
   skip: >
-    ! ( $CIRRUS_PR == '' || $CIRRUS_PR_LABELS =~ '.*CI: (Full|ZAM).*' || changesInclude('src/script_opt/**') )
+    ( ! ($CIRRUS_PR == '' || $CIRRUS_PR_LABELS =~ '.*CI: (Full|ZAM).*' || changesInclude('src/script_opt/**')) || $CIRRUS_PR_LABELS =~ '.*CI: Skip All' )
 
 benchmark_only_if_template: &BENCHMARK_ONLY_IF_TEMPLATE
   # only_if condition for cron-triggered benchmarking tests.
@@ -128,6 +135,10 @@ ci_template: &CI_TEMPLATE
     ccache_prune_script:
       # Evit some of the cached build artifacts not used in this build.
       CCACHE_MAXSIZE=${ZEEK_CCACHE_PRUNE_SIZE} ccache -c
+
+  # Always skip all tasks on a PR if the "CI: Skip All" label is applied.
+  skip: >
+    $CIRRUS_PR != '' && $CIRRUS_PR_LABELS =~ '.*CI: Skip All.*'
 
 env:
   CIRRUS_WORKING_DIR: /zeek
@@ -300,9 +311,27 @@ ubuntu24_clang_libcpp_task:
   << : *CI_TEMPLATE
   << : *SKIP_TASK_ON_PR
   env:
-    CC: clang-18
-    CXX: clang++-18
+    CC: clang-19
+    CXX: clang++-19
     CXXFLAGS: -stdlib=libc++
+
+ubuntu24_clang_tidy_task:
+  container:
+    # Ubuntu 24.04 EOL: Jun 2029
+    dockerfile: ci/ubuntu-24.04/Dockerfile
+    << : *RESOURCES_TEMPLATE
+  << : *CI_TEMPLATE
+  # Run on merges to master and release/.* and benchmark-nightly cron.
+  only_if: >
+    ( $CIRRUS_REPO_NAME == 'zeek' || $CIRRUS_REPO_NAME == 'zeek-security' ) &&
+      $CIRRUS_BRANCH == 'master' ||
+      $CIRRUS_BRANCH =~ 'release/.*' ||
+      $CIRRUS_CRON == 'benchmark-nightly'
+  env:
+    CC: clang-19
+    CXX: clang++-19
+    ZEEK_CI_CONFIGURE_FLAGS: *CLANG_TIDY_CONFIG
+
 
 ubuntu22_task:
   container:
@@ -445,8 +474,8 @@ ubsan_sanitizer_task:
   << : *SKIP_TASK_ON_PR
   test_fuzzers_script: ./ci/test-fuzzers.sh
   env:
-    CC: clang-18
-    CXX: clang++-18
+    CC: clang-19
+    CXX: clang++-19
     CXXFLAGS: -DZEEK_DICT_DEBUG
     ZEEK_CI_CONFIGURE_FLAGS: *UBSAN_SANITIZER_CONFIG
     ZEEK_TAILORED_UB_CHECKS: 1
@@ -459,8 +488,8 @@ ubsan_sanitizer_zam_task:
 
   << : *CI_TEMPLATE
   env:
-    CC: clang-18
-    CXX: clang++-18
+    CC: clang-19
+    CXX: clang++-19
     ZEEK_CI_CONFIGURE_FLAGS: *UBSAN_SANITIZER_CONFIG
     ZEEK_TAILORED_UB_CHECKS: 1
     UBSAN_OPTIONS: print_stacktrace=1
@@ -480,8 +509,8 @@ tsan_sanitizer_task:
   << : *CI_TEMPLATE
   << : *SKIP_TASK_ON_PR
   env:
-    CC: clang-18
-    CXX: clang++-18
+    CC: clang-19
+    CXX: clang++-19
     ZEEK_CI_CONFIGURE_FLAGS: *TSAN_SANITIZER_CONFIG
     ZEEK_CI_DISABLE_SCRIPT_PROFILING: 1
     # If this is defined directly in the environment, configure fails to find
@@ -507,6 +536,8 @@ windows_task:
     # Give verbose error output on a test failure.
     CTEST_OUTPUT_ON_FAILURE: 1
   << : *BUILDS_ONLY_IF_TEMPLATE
+  skip: >
+    $CIRRUS_PR != '' && $CIRRUS_PR_LABELS =~ '.*CI: Skip All.*'
 
 
 # Container images
@@ -593,7 +624,7 @@ amd64_container_image_docker_builder:
   env:
     CIRRUS_ARCH: amd64
   << : *DOCKER_BUILD_TEMPLATE
-  << : *SKIP_TASK_ON_PR
+  << : *SKIP_CLUSTER_TEST_ON_PR
 
 container_image_manifest_docker_builder:
   cpu: 1
@@ -722,7 +753,7 @@ cluster_testing_docker_builder:
       path: "testing/external/zeek-testing-cluster/.tmp/**"
   depends_on:
     - amd64_container_image
-  << : *SKIP_TASK_ON_PR
+  << : *SKIP_CLUSTER_TEST_ON_PR
 
 
 # Test zeekctl upon master and release pushes and also when

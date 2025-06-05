@@ -579,6 +579,53 @@ const io_poll_interval_live = 10 &redef;
 ## while testing, but should be used sparingly.
 const running_under_test: bool = F &redef;
 
+module EventMetadata;
+
+export {
+	## Enum type for metadata identifiers.
+	type ID: enum {
+		NETWORK_TIMESTAMP = 1,
+	};
+
+	## A event metadata entry.
+	type Entry: record {
+		id: EventMetadata::ID; ##< The registered :zeek:see:`EventMetadata::ID` value.
+		val: any;              ##< The value. Its type matches what was passed to :zeek:see:`EventMetadata::register`.
+	};
+
+	## Add network timestamp metadata to all events.
+	##
+	## Adding network timestamp metadata affects local and
+	## remote events. Events scheduled have a network timestamp
+	## of when the scheduled timer was supposed to expire, which
+	## might be a value before the network_time() when the event
+	## was actually dispatched.
+	const add_network_timestamp: bool = F &redef;
+
+	## By default, remote events without network timestamp metadata
+	## will yield a negative zeek:see:`current_event_time` during
+	## processing. To have the receiving Zeek node set the event's
+	## network timestamp metadata with its current local network time,
+	## set this option to true.
+	##
+	## This setting is only in effect if :zeek:see:`EventMetadata::add_network_timestamp`
+	## is also set to true.
+	const add_missing_remote_network_timestamp: bool = F &redef;
+}
+
+module ConnTuple;
+
+export {
+	## The connection tuple builder to use for Zeek's internal flow
+	## tracking. This is a ``ConnTuple::Tag`` plugin component enum value,
+	## and the default is 5-tuple-tracking based on IP/port endpoint pairs,
+	## plus transport protocol. Plugins can provide their own
+	## implementation. You'll usually not adjust this value in isolation,
+	## but with a corresponding redef of the :zeek:type:`conn_id` record to
+	## represent additional tuple members.
+	const builder = ConnTuple::CONNTUPLE_FIVETUPLE &redef;
+}
+
 module FTP;
 
 export {
@@ -750,6 +797,9 @@ module GLOBAL;
 ##    via ``bifcl``. We should extend ``bifcl`` to understand composite types
 ##    directly and then remove this alias.
 type EncapsulatingConnVector: vector of Tunnel::EncapsulatingConn;
+
+## A type alias for event metadata.
+type event_metadata_vec: vector of EventMetadata::Entry;
 
 ## Statistics about a :zeek:type:`connection` endpoint.
 ##
@@ -5466,10 +5516,16 @@ export {
 		## Timestamps will be formatted as UNIX epoch doubles.  This is
 		## the format that Zeek typically writes out timestamps.
 		TS_EPOCH,
+		## Timestamps will be formatted as signed integers that
+		## represent the number of milliseconds since the UNIX
+		## epoch. Timestamps before the UNIX epoch are represented
+		## as negative values.
+		TS_MILLIS,
 		## Timestamps will be formatted as unsigned integers that
 		## represent the number of milliseconds since the UNIX
-		## epoch.
-		TS_MILLIS,
+		## epoch. Timestamps before the UNIX epoch result in negative
+		## values being interpreted as large unsigned integers.
+		TS_MILLIS_UNSIGNED,
 		## Timestamps will be formatted in the ISO8601 DateTime format.
 		## Subseconds are also included which isn't actually part of the
 		## standard but most consumers that parse ISO8601 seem to be able

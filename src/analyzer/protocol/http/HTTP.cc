@@ -20,14 +20,14 @@ const bool DEBUG_http = false;
 
 // The EXPECT_*_NOTHING states are used to prevent further parsing. Used if a
 // message was interrupted.
-enum HTTP_ExpectRequest {
+enum HTTP_ExpectRequest : uint8_t {
     EXPECT_REQUEST_LINE,
     EXPECT_REQUEST_MESSAGE,
     EXPECT_REQUEST_TRAILER,
     EXPECT_REQUEST_NOTHING,
 };
 
-enum HTTP_ExpectReply {
+enum HTTP_ExpectReply : uint8_t {
     EXPECT_REPLY_LINE,
     EXPECT_REPLY_MESSAGE,
     EXPECT_REPLY_TRAILER,
@@ -103,7 +103,7 @@ void HTTP_Entity::Deliver(int len, const char* data, bool trailing_CRLF) {
     // Entity body.
     if ( content_type == analyzer::mime::CONTENT_TYPE_MULTIPART ||
          content_type == analyzer::mime::CONTENT_TYPE_MESSAGE )
-        DeliverBody(len, data, trailing_CRLF);
+        DeliverBody(len, data, trailing_CRLF); // NOLINT(bugprone-branch-clone)
 
     else if ( chunked_transfer_state != NON_CHUNKED_TRANSFER ) {
         switch ( chunked_transfer_state ) {
@@ -1111,7 +1111,7 @@ const char* HTTP_Analyzer::PrefixMatch(const char* line, const char* end_of_line
 
 const char* HTTP_Analyzer::PrefixWordMatch(const char* line, const char* end_of_line, const char* prefix,
                                            bool ignore_case) {
-    if ( (line = PrefixMatch(line, end_of_line, prefix, ignore_case)) == nullptr )
+    if ( line = PrefixMatch(line, end_of_line, prefix, ignore_case); line == nullptr )
         return nullptr;
 
     const char* orig_line = line;
@@ -1417,7 +1417,7 @@ void HTTP_Analyzer::HTTP_Upgrade() {
                 analyzer_tag_val->GetType<EnumType>()->Lookup(analyzer_tag_val->AsEnum()),
                 upgrade_protocol_val->CheckString());
         auto analyzer_tag = analyzer_mgr->GetComponentTag(analyzer_tag_val.get());
-        auto* analyzer = analyzer_mgr->InstantiateAnalyzer(std::move(analyzer_tag), Conn());
+        auto* analyzer = analyzer_mgr->InstantiateAnalyzer(analyzer_tag, Conn());
         if ( analyzer ) {
             AddChildAnalyzer(analyzer);
 

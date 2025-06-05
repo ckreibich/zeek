@@ -28,7 +28,7 @@ string CPPCompile::GenListExpr(const Expr* e, GenType gt, bool nested) {
 
         if ( nested && e_i->Tag() == EXPR_LIST )
             // These are table or set indices.
-            gen_i = string("index_val__CPP({") + gen_i + "})";
+            gen_i = util::fmt("index_val__CPP({%s})", gen_i.c_str());
 
         gen += gen_i;
 
@@ -1144,7 +1144,7 @@ string CPPCompile::GenListAssign(const ExprPtr& lhs, const ExprPtr& rhs) {
 }
 
 string CPPCompile::GenVectorOp(const Expr* e, string op, const char* vec_op) {
-    auto t = e->GetType();
+    const auto& t = e->GetType();
     auto gen_t = GenTypeName(t);
     auto gen = string("vec_op_") + vec_op + "__CPP(" + op + ", " + gen_t + ")";
 
@@ -1196,7 +1196,7 @@ string CPPCompile::GenLambdaClone(const LambdaExpr* l, bool all_deep) {
         if ( captures && ! IsNativeType(id_t) ) {
             for ( const auto& c : *captures )
                 if ( id == c.Id() && (c.IsDeepCopy() || all_deep) )
-                    arg = string("cast_intrusive<") + TypeName(id_t) + ">(" + arg + "->Clone())";
+                    arg = util::fmt("cast_intrusive<%s>(%s->Clone())", TypeName(id_t), arg.c_str());
         }
 
         cl_args += ", " + arg;
@@ -1241,7 +1241,6 @@ string CPPCompile::GenField(const ExprPtr& rec, int field) {
         auto pt = processed_types.find(rt);
         ASSERT(pt != processed_types.end());
         auto rt_offset = pt->second->Offset();
-        string field_name = rt->FieldName(field);
         field_decls.emplace_back(rt_offset, rt->FieldDecl(field));
 
         if ( rfm != record_field_mappings.end() )

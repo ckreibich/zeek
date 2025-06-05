@@ -19,8 +19,6 @@
 #include "zeek/iosource/PktSrc.h"
 #include "zeek/plugin/Manager.h"
 
-#define DEFAULT_PREFIX "pcap"
-
 extern int signal_val;
 
 namespace zeek::iosource {
@@ -38,7 +36,7 @@ void Manager::WakeupHandler::Ping(std::string_view where) {
     // Calling DBG_LOG calls fprintf, which isn't safe to call in a signal
     // handler.
     if ( signal_val != 0 )
-        DBG_LOG(DBG_MAINLOOP, "Pinging WakeupHandler from %s", where.data());
+        DBG_LOG(DBG_MAINLOOP, "Pinging WakeupHandler from %.*s", static_cast<int>(where.size()), where.data());
 
     flare.Fire(true);
 }
@@ -368,6 +366,10 @@ void Manager::Register(PktSrc* src) {
         poll_interval = 1;
 }
 
+/**
+ * Checks if the path comes with a prefix telling us which type of PktSrc to use. If no
+ * prefix exists, return "pcap" as a default.
+ */
 static std::pair<std::string, std::string> split_prefix(std::string path) {
     // See if the path comes with a prefix telling us which type of
     // PktSrc to use. If not, choose default.
@@ -378,9 +380,8 @@ static std::pair<std::string, std::string> split_prefix(std::string path) {
         prefix = path.substr(0, i);
         path = path.substr(i + 2, std::string::npos);
     }
-
     else
-        prefix = DEFAULT_PREFIX;
+        prefix = "pcap";
 
     return std::make_pair(prefix, path);
 }

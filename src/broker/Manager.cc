@@ -8,6 +8,7 @@
 #include <broker/event.hh>
 #include <broker/event_observer.hh>
 #include <broker/logger.hh>
+#include <broker/time.hh>
 #include <broker/variant.hh>
 #include <broker/zeek.hh>
 #include <unistd.h>
@@ -41,6 +42,8 @@
 #include "zeek/plugin/Plugin.h"
 #include "zeek/telemetry/Manager.h"
 #include "zeek/util.h"
+
+#include "const.bif.netvar_h"
 
 using namespace std;
 
@@ -397,8 +400,6 @@ struct opt_mapping {
     }
 };
 
-#define WITH_OPT_MAPPING(broker_name, zeek_name) if ( auto opt = opt_mapping{&config, broker_name, zeek_name}; true )
-
 } // namespace
 
 class BrokerState {
@@ -539,7 +540,7 @@ void Manager::DoInitPostScript() {
         reporter->FatalError("Invalid Broker::web_socket_overflow_policy: %s", web_socket_overflow_policy);
     }
 
-    broker::configuration config{std::move(options)};
+    broker::configuration config{options};
 
     config.openssl_cafile(get_option("Broker::ssl_cafile")->AsString()->CheckString());
     config.openssl_capath(get_option("Broker::ssl_capath")->AsString()->CheckString());
@@ -678,6 +679,7 @@ void Manager::DoTerminate() {
     iosource_mgr->UnregisterFd(bstate->loggerQueue->FlareFd(), this);
 
     vector<string> stores_to_close;
+    stores_to_close.reserve(data_stores.size());
 
     for ( auto& x : data_stores )
         stores_to_close.push_back(x.first);
@@ -849,8 +851,15 @@ bool Manager::PublishEvent(string topic, std::string name, broker::vector args, 
     if ( peer_count == 0 && hub_count == 0 )
         return true;
 
-    broker::zeek::Event ev(name, args, broker::to_timestamp(ts));
-    DBG_LOG(DBG_BROKER, "Publishing event: %s", RenderEvent(topic, name, ev.args()).c_str());
+    broker::vector meta;
+    if ( BifConst::EventMetadata::add_network_timestamp ) {
+        broker::vector entry{static_cast<broker::count>(zeek::detail::MetadataType::NetworkTimestamp),
+                             broker::to_timestamp(ts)};
+        meta.emplace_back(std::move(entry));
+    }
+
+    broker::zeek::Event ev(name, args, meta);
+    DBG_LOG(DBG_BROKER, "Publishing event: %s", RenderEvent(topic, std::string(ev.name()), ev.args()).c_str());
     bstate->endpoint.publish(std::move(topic), ev.move_data());
     num_events_outgoing_metric->Inc();
     return true;
@@ -910,7 +919,7 @@ bool Manager::PublishIdentifier(std::string topic, std::string id) {
         return false;
     }
 
-    broker::zeek::IdentifierUpdate msg(std::move(id), std::move(data.value_));
+    broker::zeek::IdentifierUpdate msg(std::move(id), data.value_);
     DBG_LOG(DBG_BROKER, "Publishing id-update: %s", RenderMessage(topic, msg.as_data()).c_str());
     bstate->endpoint.publish(std::move(topic), msg.move_data());
     num_ids_outgoing_metric->Inc();
@@ -951,10 +960,9 @@ bool Manager::PublishLogCreate(EnumVal* stream, EnumVal* writer, const logging::
     }
 
     std::string topic = default_log_topic_prefix + stream_id;
-    auto bstream_id = broker::enum_value(std::move(stream_id));
-    auto bwriter_id = broker::enum_value(std::move(writer_id));
-    broker::zeek::LogCreate msg(std::move(bstream_id), std::move(bwriter_id), std::move(writer_info),
-                                std::move(fields_data));
+    auto bstream_id = broker::enum_value(stream_id);
+    auto bwriter_id = broker::enum_value(writer_id);
+    broker::zeek::LogCreate msg(bstream_id, bwriter_id, writer_info, fields_data);
 
     DBG_LOG(DBG_BROKER, "Publishing log creation: %s", RenderMessage(topic, msg.as_data()).c_str());
 
@@ -1028,9 +1036,9 @@ bool Manager::PublishLogWrite(EnumVal* stream, EnumVal* writer, const string& pa
 
     std::string topic = v->AsString()->CheckString();
 
-    auto bstream_id = broker::enum_value(std::move(stream_id));
-    auto bwriter_id = broker::enum_value(std::move(writer_id));
-    broker::zeek::LogWrite msg(std::move(bstream_id), std::move(bwriter_id), std::move(path), std::move(serial_data));
+    auto bstream_id = broker::enum_value(stream_id);
+    auto bwriter_id = broker::enum_value(writer_id);
+    broker::zeek::LogWrite msg(bstream_id, bwriter_id, std::move(path), std::move(serial_data));
 
     DBG_LOG(DBG_BROKER, "Buffering log record: %s", RenderMessage(topic, msg.as_data()).c_str());
 
@@ -1301,8 +1309,7 @@ void Manager::ProcessMessages() {
             // message. Since `topic` still points into the original memory
             // region, we may no longer access it after this point.
             auto topic_str = broker::get_topic_str(message);
-            broker::zeek::visit_as_message([this, topic_str](auto& msg) { ProcessMessage(topic_str, msg); },
-                                           std::move(message));
+            broker::zeek::visit_as_message([this, topic_str](auto& msg) { ProcessMessage(topic_str, msg); }, message);
         } catch ( std::runtime_error& e ) {
             reporter->Warning("ignoring invalid Broker message: %s", +e.what());
             continue;
@@ -1571,15 +1578,10 @@ void Manager::ProcessMessage(std::string_view topic, broker::zeek::Event& ev) {
 
     auto&& name = ev.name();
     auto&& args = ev.args();
-    double ts;
+    auto meta = cluster::detail::metadata_vector_from_broker_event(ev);
 
-    if ( auto ev_ts = ev.ts() )
-        broker::convert(*ev_ts, ts);
-    else
-        // Default to current network time, if the received event did not contain a timestamp.
-        ts = run_state::network_time;
-
-    DBG_LOG(DBG_BROKER, "Process event: %s (%.6f) %s", std::string{name}.c_str(), ts, RenderMessage(args).c_str());
+    DBG_LOG(DBG_BROKER, "Process event: %s (with %zu metadata entries) %s", std::string{name}.c_str(),
+            meta ? meta->size() : 0, RenderMessage(args).c_str());
     num_events_incoming_metric->Inc();
     auto handler = event_registry->Lookup(name);
 
@@ -1590,7 +1592,7 @@ void Manager::ProcessMessage(std::string_view topic, broker::zeek::Event& ev) {
         if ( p.size() > topic.size() )
             continue;
 
-        if ( strncmp(p.data(), topic.data(), p.size()) != 0 )
+        if ( strncmp(p.data(), topic.data(), p.size()) != 0 ) // NOLINT(bugprone-suspicious-stringview-data-usage)
             continue;
 
         DBG_LOG(DBG_BROKER, "Skip processing of forwarded event: %s %s", std::string{name}.c_str(),
@@ -1656,7 +1658,7 @@ void Manager::ProcessMessage(std::string_view topic, broker::zeek::Event& ev) {
     }
 
     if ( vl.size() == args.size() )
-        event_mgr.Enqueue(handler, std::move(vl), util::detail::SOURCE_BROKER, 0, nullptr, ts);
+        event_mgr.Enqueue(std::move(meta), handler, std::move(vl), util::detail::SOURCE_BROKER);
 }
 
 bool Manager::ProcessMessage(std::string_view, broker::zeek::LogCreate& lc) {
@@ -1932,7 +1934,7 @@ void Manager::ProcessStoreResponse(detail::StoreHandleVal* s, broker::store::res
         BrokerData tmp{std::move(*response.answer)};
         request->second->Result(detail::query_result(std::move(tmp).ToRecordVal()));
     }
-    else if ( response.answer.error() == broker::ec::request_timeout ) {
+    else if ( response.answer.error() == broker::ec::request_timeout ) { // NOLINT(bugprone-branch-clone)
         // Fine, trigger's timeout takes care of things.
     }
     else if ( response.answer.error() == broker::ec::stale_data ) {
@@ -2089,12 +2091,14 @@ detail::StoreHandleVal* Manager::MakeClone(const string& name, double resync_int
     }
 
     auto handle = new detail::StoreHandleVal{*result};
-    Ref(handle);
 
     if ( ! handle->proxy.valid() ) {
         reporter->Error("Failed to create clone for data store %s", name.c_str());
+        delete handle;
         return nullptr;
     }
+
+    Ref(handle);
 
     data_stores.emplace(name, handle);
     if ( ! iosource_mgr->RegisterFd(handle->proxy.mailbox().descriptor(), this) )

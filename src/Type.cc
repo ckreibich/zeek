@@ -69,6 +69,7 @@ Type::Type(TypeTag t, bool arg_base_type)
       is_network_order(zeek::is_network_order(t)),
       base_type(arg_base_type) {}
 
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define CHECK_TYPE_TAG(tag_type, func_name) CHECK_TAG(tag, tag_type, func_name, type_name)
 
 const TypeList* Type::AsTypeList() const {
@@ -422,8 +423,7 @@ static bool is_supported_index_type(const TypePtr& t, const char** tname, std::u
 
     switch ( tag ) {
         // Allow functions, since they can be compared for Func* pointer equality.
-        case TYPE_FUNC: return true;
-
+        case TYPE_FUNC:
         case TYPE_PATTERN: return true;
 
         case TYPE_RECORD: {
@@ -1327,17 +1327,14 @@ void RecordType::DescribeFields(ODesc* d, bool func_args) const {
 }
 
 void RecordType::DescribeFieldsReST(ODesc* d, bool func_args) const {
-    if ( ! func_args )
-        d->PushIndent();
-
     for ( int i = 0; i < num_fields; ++i ) {
-        if ( i > 0 ) {
-            if ( func_args )
+        if ( func_args ) {
+            if ( i > 0 )
                 d->Add(", ");
-            else {
-                d->NL();
-                d->NL();
-            }
+        }
+        else {
+            d->NL();
+            d->NL();
         }
 
         const TypeDecl* td = FieldDecl(i);
@@ -1348,8 +1345,39 @@ void RecordType::DescribeFieldsReST(ODesc* d, bool func_args) const {
             if ( num_fields == 1 && util::streq(td->id, "va_args") && td->type->Tag() == TYPE_ANY )
                 // This was a BIF using variable argument list
                 d->Add("...");
-            else
-                td->DescribeReST(d);
+            else {
+                if ( func_args ) {
+                    td->DescribeReST(d);
+                }
+                else {
+                    // ReST rendering of a TypeDecl as zeek:field directive if
+                    // this is about rendering a proper record type and not
+                    // function parameters.
+                    //
+                    // Not sure why we're treating record types and function
+                    // signatures the same thing and than denote what it is
+                    // by passing around a bool. Open-code the field directive
+                    // rendering here.
+                    d->Add(".. zeek:field:: ");
+                    d->Add(td->id);
+                    d->Add(" ");
+                    if ( ! td->type->GetName().empty() ) {
+                        d->Add(":zeek:type:`");
+                        d->Add(td->type->GetName());
+                        d->Add("`");
+                    }
+                    else {
+                        td->type->DescribeReST(d, /*roles_only=*/true);
+                    }
+                    if ( td->attrs ) {
+                        d->SP();
+                        td->attrs->DescribeReST(d, /*shorten=*/true);
+                    }
+
+                    // Good thing ReST doesn't care too much about extra whitespace.
+                    d->NL();
+                }
+            }
         }
 
         if ( func_args )
@@ -1397,11 +1425,8 @@ void RecordType::DescribeFieldsReST(ODesc* d, bool func_args) const {
                 d->Add(cmnts[i].c_str());
         }
 
-        d->PopIndentNoNL();
+        d->PopIndent();
     }
-
-    if ( ! func_args )
-        d->PopIndentNoNL();
 }
 
 string RecordType::GetFieldDeprecationWarning(int field, bool has_check) const {
@@ -1843,7 +1868,7 @@ bool same_type(const Type& arg_t1, const Type& arg_t2, bool is_init, bool match_
     // First do all checks that don't require any recursion.
 
     switch ( t1->Tag() ) {
-        case TYPE_VOID:
+        case TYPE_VOID: // NOLINT(bugprone-branch-clone)
         case TYPE_BOOL:
         case TYPE_INT:
         case TYPE_COUNT:
@@ -2143,8 +2168,7 @@ bool is_assignable(TypeTag t) {
         case TYPE_FUNC:
         case TYPE_ANY:
         case TYPE_ERROR:
-        case TYPE_LIST: return true;
-
+        case TYPE_LIST:
         case TYPE_VECTOR:
         case TYPE_FILE:
         case TYPE_OPAQUE:
@@ -2157,10 +2181,6 @@ bool is_assignable(TypeTag t) {
     return false;
 }
 
-#define CHECK_TYPE(t)                                                                                                  \
-    if ( t1 == t || t2 == t )                                                                                          \
-        return t;
-
 TypeTag max_type(TypeTag t1, TypeTag t2) {
     if ( t1 == TYPE_INTERVAL || t1 == TYPE_TIME )
         t1 = TYPE_DOUBLE;
@@ -2168,9 +2188,12 @@ TypeTag max_type(TypeTag t1, TypeTag t2) {
         t2 = TYPE_DOUBLE;
 
     if ( BothArithmetic(t1, t2) ) {
-        CHECK_TYPE(TYPE_DOUBLE);
-        CHECK_TYPE(TYPE_INT);
-        CHECK_TYPE(TYPE_COUNT);
+        if ( t1 == TYPE_DOUBLE || t2 == TYPE_DOUBLE )
+            return TYPE_DOUBLE;
+        else if ( t1 == TYPE_INT || t2 == TYPE_INT )
+            return TYPE_INT;
+        else if ( t1 == TYPE_COUNT || t2 == TYPE_COUNT )
+            return TYPE_COUNT;
 
         return TYPE_COUNT;
     }
@@ -2326,7 +2349,7 @@ TypePtr merge_record_types(const Type* t1, const Type* t2) {
                 attrs3->AddAttrs(td2->attrs);
 
             attrs3->AddAttr(make_intrusive<detail::Attr>(detail::ATTR_OPTIONAL));
-            auto td_merge = new TypeDecl(util::copy_string(td2->id), std::move(td2->type), attrs3);
+            auto td_merge = new TypeDecl(util::copy_string(td2->id), td2->type, attrs3);
             tdl3->push_back(td_merge);
         }
     }

@@ -24,6 +24,8 @@
 #include "zeek/script_opt/Expr.h"
 #include "zeek/script_opt/ScriptOpt.h"
 
+#include "const.bif.netvar_h"
+
 namespace zeek::detail {
 
 const char* expr_name(ExprTag t) {
@@ -740,6 +742,8 @@ ValPtr BinaryExpr::Fold(Val* v1, Val* v2) const {
         RuntimeErrorWithCallStack("bad type in BinaryExpr::Fold");
 
     switch ( tag ) {
+        // Once we have C++20, these macros can become templated lambdas.
+        // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define DO_INT_FOLD(op)                                                                                                \
     if ( is_integral )                                                                                                 \
         i3 = i1 op i2;                                                                                                 \
@@ -769,6 +773,7 @@ ValPtr BinaryExpr::Fold(Val* v1, Val* v2) const {
         i3 = u1 op u2;                                                                                                 \
     else                                                                                                               \
         i3 = d1 op d2;
+            // NOLINTEND(cppcoreguidelines-macro-usage)
 
         case EXPR_ADD:
         case EXPR_ADD_TO: DO_FOLD(+); break;
@@ -890,11 +895,13 @@ ValPtr BinaryExpr::StringFold(Val* v1, Val* v2) const {
 
     switch ( tag ) {
 #undef DO_FOLD
+// NOLINTBEGIN(bugprone-macro-parentheses, cppcoreguidelines-macro-usage)
 #define DO_FOLD(sense)                                                                                                 \
     {                                                                                                                  \
         result = Bstr_cmp(s1, s2) sense 0;                                                                             \
         break;                                                                                                         \
     }
+            // NOLINTEND(bugprone-macro-parentheses, cppcoreguidelines-macro-usage)
 
         case EXPR_LT: DO_FOLD(<)
         case EXPR_LE: DO_FOLD(<=)
@@ -1022,8 +1029,8 @@ ValPtr BinaryExpr::TableFold(Val* v1, Val* v2) const {
 }
 
 ValPtr BinaryExpr::AddrFold(Val* v1, Val* v2) const {
-    IPAddr a1 = v1->AsAddr();
-    IPAddr a2 = v2->AsAddr();
+    const IPAddr& a1 = v1->AsAddr();
+    const IPAddr& a2 = v2->AsAddr();
     bool result = false;
 
     switch ( tag ) {
@@ -1381,8 +1388,8 @@ AddExpr::AddExpr(ExprPtr arg_op1, ExprPtr arg_op2) : BinaryExpr(EXPR_ADD, std::m
 
     TypePtr base_result_type;
 
-    if ( bt2 == TYPE_INTERVAL && (bt1 == TYPE_TIME || bt1 == TYPE_INTERVAL) )
-        base_result_type = base_type(bt1);
+    if ( (bt2 == TYPE_INTERVAL && (bt1 == TYPE_TIME || bt1 == TYPE_INTERVAL)) )
+        base_result_type = base_type(bt1); // NOLINT(bugprone-branch-clone)
     else if ( bt2 == TYPE_TIME && bt1 == TYPE_INTERVAL )
         base_result_type = base_type(bt2);
     else if ( BothArithmetic(bt1, bt2) )
@@ -1923,7 +1930,7 @@ CmpExpr::CmpExpr(ExprTag tag, ExprPtr _op1, ExprPtr _op2) : BinaryExpr(tag, std:
 void CmpExpr::Canonicalize() {
     if ( tag == EXPR_EQ || tag == EXPR_NE ) {
         if ( op2->GetType()->Tag() == TYPE_PATTERN )
-            SwapOps();
+            SwapOps(); //NOLINT(bugprone-branch-clone)
 
         else if ( op1->GetType()->Tag() == TYPE_PATTERN )
             ;
@@ -3827,11 +3834,17 @@ ScheduleTimer::ScheduleTimer(const EventHandlerPtr& arg_event, Args arg_args, do
 
 void ScheduleTimer::Dispatch(double /* t */, bool /* is_expire */) {
     if ( event ) {
-        // An event's intended timestamp might be in the past as timer expiration is driven by
-        // network time. Guarantee that the intended timestamp is never in the future (e.g.,
-        // when all timers are expired on shutdown).
-        auto ts = std::min(this->Time(), run_state::network_time);
-        event_mgr.Enqueue(event, std::move(args), util::detail::SOURCE_LOCAL, 0, nullptr, ts);
+        detail::EventMetadataVectorPtr meta;
+
+        if ( BifConst::EventMetadata::add_network_timestamp ) {
+            // An event's intended timestamp might be in the past as timer expiration is driven by
+            // network time. Guarantee that the intended timestamp is never in the future (e.g.,
+            // when all timers are expired on shutdown).
+            auto ts = std::min(this->Time(), run_state::network_time);
+            meta = detail::MakeEventMetadataVector(ts);
+        }
+
+        event_mgr.Enqueue(std::move(meta), event, std::move(args));
     }
 }
 
@@ -4074,10 +4087,13 @@ CallExpr::CallExpr(ExprPtr arg_func, ListExprPtr arg_args, bool in_hook, bool _i
              util::streq(((NameExpr*)func.get())->Id()->Name(), "fmt") &&
              // The following is needed because fmt might not yet
              // be bound as a name.
-             did_builtin_init && (func_val = func->Eval(nullptr)) ) {
-            zeek::Func* f = func_val->AsFunc();
-            if ( f->GetKind() == Func::BUILTIN_FUNC && ! check_built_in_call((BuiltinFunc*)f, this) )
-                SetError();
+             did_builtin_init ) {
+            func_val = func->Eval(nullptr);
+            if ( func_val ) {
+                zeek::Func* f = func_val->AsFunc();
+                if ( f->GetKind() == Func::BUILTIN_FUNC && ! check_built_in_call((BuiltinFunc*)f, this) )
+                    SetError();
+            }
         }
     }
 }

@@ -1,3 +1,362 @@
+8.0.0-dev.353 | 2025-06-04 09:38:20 -0700
+
+  * Add some notes about missing/disabled cppcoreguildlines clang-tidy checkers (Tim Wojtulewicz, Corelight)
+
+  * Fix clang-tidy cppcoreguidelines-macro-usage findings (macro functions) (Tim Wojtulewicz, Corelight)
+
+  * Fix clang-tidy cppcoreguidelines-macro-usage findings (macros as constants) (Tim Wojtulewicz, Corelight)
+
+  * script_opt: Add missing virtual destructor (cppcoreguidelines-virtual-class-destructor) (Tim Wojtulewicz, Corelight)
+
+  * Parallelize coverage/bare-mode-errors (Johanna Amann, Corelight)
+
+    Currently, coverage/bare-mode-errors is one of the slowest tests in the
+    entire test suite. This is caused by the fact that it has to repeatedly
+    launch Zeek for every script that we ship. This is done sequentially.
+
+    This commit changes this test to use xargs to spawn 20 parallell
+    processes.
+
+8.0.0-dev.346 | 2025-06-04 08:39:54 -0400
+
+  * Fix Spicy re-enable builtin analyzer debug message (Evan Typanski, Corelight)
+
+8.0.0-dev.341 | 2025-06-03 11:54:04 -0700
+
+  * Redis: Add support for sending AUTH commands during connection (Tim Wojtulewicz, Corelight)
+
+  * Redis: disconnect cleanly if INFO request fails (Tim Wojtulewicz, Corelight)
+
+  * Fix segfault if storage sync open_backend returns bad code (Tim Wojtulewicz, Corelight)
+
+  * Add ToStdString and ToStdStringView to ZeekString (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.335 | 2025-06-02 14:52:44 -0700
+
+  * Update libunistd submodule [nomail] (Tim Wojtulewicz, Corelight)
+
+  * Update Windows CI image to Visual Studio 2022 (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.332 | 2025-06-02 14:31:29 -0700
+
+  * CI: Force rebuild of opensuse tumbleweed docker image (Tim Wojtulewicz, Corelight)
+
+    Something is off with the libhiredis package that's installed
+    as part of the current image, and 'zypper patch' is failing to
+    update it during the prepare step. Force a rebuild so the
+    updated package is part of the image to start with.
+
+8.0.0-dev.330 | 2025-06-02 14:30:41 -0700
+
+  * Bump Spicy to pull in fix. (Robin Sommer, Corelight)
+
+    Includes a new regression test.
+
+    Closes #4501.
+
+8.0.0-dev.328 | 2025-06-02 11:45:03 -0700
+
+  * Bump zeekjs to v0.17.1 (Arne Welzel, Corelight)
+
+        b340648 version: 0.17.1
+        ccd32e1 ci/docker: Use Fedora 42, retire Fedora 40
+        6893431 Nodejs: Use argv.data() over &argv[0]
+
+8.0.0-dev.326 | 2025-06-02 11:43:56 -0700
+
+  * Fix incorrectly copied comment [skip CI] (Benjamin Bannier, Corelight)
+
+8.0.0-dev.324 | 2025-06-02 17:32:39 +0200
+
+  * Event: Bail on add_missing_remote_network_timestamp without add_network_timestamp (Arne Welzel, Corelight)
+
+  * btest/plugin: Test custom metadata publish (Arne Welzel, Corelight)
+
+    Usage demo for plugin writers to add custom event metadata and access in
+    in Zeek scripts.
+
+  * NEWS: Add note about generic event metadata (Arne Welzel, Corelight)
+
+  * cluster: Remove deprecated Event constructor (Arne Welzel, Corelight)
+
+    It is now unused, ditch it. This wasn't available in an LTS release yet
+    and anyhow is in the detail namespace.
+
+  * cluster: Remove some explicit timestamp handling (Arne Welzel, Corelight)
+
+    Backend::MakeClusterEvent() for now is the only place to add implicit
+    network timestamp metadata within the cluster component.
+
+  * broker/Manager: Fetch and forward all metadata from events (Arne Welzel, Corelight)
+
+    Also use the generic metadata version for publishing, keep the
+    ts-based API for now, but only add timestamps when
+    EventMetadata::add_network_timestamp is T. I'm not sure what the
+    right way forward here is, maybe deprecating Broker's publish event
+    variations and funneling through cluster.
+
+  * Event/init-bare: Add add_missing_remote_network_timestamp logic (Arne Welzel, Corelight)
+
+    Make defaulting to the local network timestamp for remote events opt-in.
+
+  * cluster/Backend/DoProcessEvent: Use generic metadata, not just timestamps (Arne Welzel, Corelight)
+
+  * cluster/Event: Support moving args and metadata from event (Arne Welzel, Corelight)
+
+  * cluster/serializer/broker: Support generic metadata (Arne Welzel, Corelight)
+
+    Instead of handling just the network timestamp, support extraction of
+    the whole metadata vector that broker events hold.
+
+  * cluster/Event: Generic metadata support (Arne Welzel, Corelight)
+
+    Instead of a timestamp attribute, switch to holding a EventMetadataVectorPtr
+    like zeek::Event instances do. Keep the old constructor until the end of
+    the patch series.
+
+  * Event: Use -1.0 for undefined/unset timestamps (Arne Welzel, Corelight)
+
+    This can happen if either there's no network timestamp associated with
+    an event, or there's currently no event being dispatched. Using 0.0
+    isn't great as it's the normal start timestamp before reading a network
+    packet. Using -1.0 gives the caller a chance to check and realize what's
+    going on.
+
+  * cluster: Use shorter obj_desc versions (Arne Welzel, Corelight)
+
+  * Desc: Add obj_desc() / obj_desc_short() overloads for IntrusivePtr (Arne Welzel, Corelight)
+
+    When using these helpers in code, one barely has raw pointers and the
+    repeated `.get()` call cumbersome and noisy.
+
+8.0.0-dev.309 | 2025-06-02 10:17:14 +0200
+
+  * Prefer `std::move` over copy (Benjamin Bannier, Corelight)
+
+8.0.0-dev.307 | 2025-06-02 10:12:14 +0200
+
+  * minor BTest maintenance updates for -O gen-C++ (Vern Paxson, Corelight)
+
+  * fix for more robustly finding BTests to assess for -O gen-C++ (Vern Paxson, Corelight)
+
+  * fix for -O gen-C++ dealing with type constants of unnamed compound types (Vern Paxson, Corelight)
+
+8.0.0-dev.303 | 2025-06-02 09:51:53 +0200
+
+  * intel/seen/manage-event-groups: Policy script for toggling intel event groups (Arne Welzel, Corelight)
+
+    Co-authored-by: Mohan Dhawan <mohan@corelight.com>
+
+  * intel: Add indicator_inserted and indicator_removed hooks (Arne Welzel, Corelight)
+
+    This change adds two new hooks to the Intel framework that can be used
+    to intercept added and removed indicators and their type.
+
+    These hooks are fairly low-level. One immediate use-case is to count the
+    number of indicators loaded per Intel::Type and enable and disable the
+    corresponding event groups of the intel/seen scripts.
+
+    I attempted to gauge the overhead and while it's definitely there, loading
+    a file with ~500k DOMAIN entries takes somewhere around ~0.5 seconds hooks
+    when populated via the min_data_store store mechanism. While that
+    doesn't sound great, it actually takes the manager on my system 2.5
+    seconds to serialize and Cluster::publish() the min_data_store alone
+    and its doing that serially for every active worker. Mostly to say that
+    the bigger overhead in that area on the manager doing redundant work
+    per worker.
+
+    Co-authored-by: Mohan Dhawan <mohan@corelight.com>
+
+8.0.0-dev.299 | 2025-05-30 13:06:42 -0700
+
+  * fix for crash when interpreting transformed ASTs that include multi-field record assignments/additions (Vern Paxson, Corelight)
+
+  * Remove unused ZAM compiler method (Vern Paxson, Corelight)
+
+8.0.0-dev.296 | 2025-05-30 12:16:27 -0700
+
+  * Add utility methods to make CMake summary output nicer (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.294 | 2025-05-30 10:29:29 -0700
+
+  * CI: Add PR label for skipping all CI jobs (Tim Wojtulewicz, Corelight)
+
+  * CI: Add PR label for running cluster tests (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.291 | 2025-05-30 08:39:28 -0700
+
+  * CI: Add new task to run clang-tidy as part of nightly builds (Tim Wojtulewicz, Corelight)
+
+  * CI: Update to clang 19 on ubuntu 24.04, add clang-tidy package (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.288 | 2025-05-30 17:24:05 +0200
+
+  * GH-4494: logging/ascii/json: Make TS_MILLIS signed, add TS_MILLIS_UNSIGNED (Arne Welzel, Corelight)
+
+    It seems TS_MILLIS is specifically for Elasticsearch and starting with
+    Elasticsearch 8.2 epoch_millis does (again?) support negative epoch_millis,
+    so make Zeek produce that by default.
+
+    If this breaks a given deployment, they can switch Zeek back to TS_MILLIS_UNSIGNED.
+
+    https://discuss.elastic.co/t/migration-from-es-6-8-to-7-17-issues-with-negative-date-epoch-timestamp/335259
+    https://github.com/elastic/elasticsearch/pull/80208
+
+    Thanks for @timo-mue for reporting!
+
+8.0.0-dev.286 | 2025-05-30 08:12:43 -0700
+
+  * Add move operations for LogWriteHeader (Tim Wojtulewicz, Corelight)
+
+  * Add missing setting of type in session::Key move operations (Tim Wojtulewicz, Corelight)
+
+  * Update .clang-tidy to have performance-* enabled with some exclusions (Tim Wojtulewicz, Corelight)
+
+  * Fix clang-tidy performance-* warnings (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.271 | 2025-05-30 16:48:43 +0200
+
+  * Update doc submodule [nomail] [skip ci] (Arne Welzel, Corelight)
+
+8.0.0-dev.270 | 2025-05-30 16:44:23 +0200
+
+  * Bump doc submodule for ext/zeek.py modifications (Arne Welzel, Corelight)
+
+  * RecordType:DescribeReST: Render RecordType using zeek:field directive (Arne Welzel, Corelight)
+
+8.0.0-dev.267 | 2025-05-30 11:43:57 +0200
+
+  * IXWebsocket: Bump to version with memset() sock addr fix (Arne Welzel, Corelight)
+
+  * cluster/websocket: Deprecate $listen_host, introduce $listen_addr (Arne Welzel, Corelight)
+
+  * GH-4474: cluster/websocket-ixwebsocket: Determine proper address_family (Arne Welzel, Corelight)
+
+8.0.0-dev.262 | 2025-05-28 08:29:33 -0700
+
+  * Remove obsolete --with-bind configure flag (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.259 | 2025-05-27 12:49:05 -0700
+
+  * Add a few std::moves to fix Coverity warnings (Tim Wojtulewicz, Corelight)
+
+  * Fix possible memory leak in broker::Manager (Tim Wojtulewicz, Corelight)
+
+  * fixup! Use SCN* constants when reading into sized integer types (Tim Wojtulewicz, Corelight)
+
+  * from_json: Statically lookup err index in result type (Tim Wojtulewicz, Corelight)
+
+  * Use SCN* constants when reading into sized integer types (Tim Wojtulewicz, Corelight)
+
+  * Remove setting unused variable value in FTP::parse_eftp (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.252 | 2025-05-27 11:59:00 -0700
+
+  * Update .clang-tidy to have bugprone-* enabled with some exclusions (Tim Wojtulewicz, Corelight)
+
+  * Fix clang-tidy bugprone-* warnings (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.229 | 2025-05-27 17:46:35 +0100
+
+  * Add explicit TLS support for FTP (Johanna Amann, Corelight)
+
+    This is defined in RFC 4217; TLS is initialized by the client sending an
+    `AUTH TLS` command.
+
+8.0.0-dev.227 | 2025-05-27 10:18:49 -0400
+
+  * spicy-redis: Separate error replies from success (Evan Typanski, Corelight)
+
+  * spicy-redis: Cleanup scripts and tests (Evan Typanski, Corelight)
+
+    - Recomputes checksums for pcaps to keep clean
+    - Removes some tests that had big pcaps or weren't necessary
+    - Cleans up scripting names and minor points
+    - Comments out Spicy code that causes a build failure now with a TODO to
+      uncomment it
+
+  * spciy-redis: Bring Redis analyzer into Zeek proper (Evan Typanski, Corelight)
+
+  * spicy-redis: Abort parsing if server data comes first (Evan Typanski, Corelight)
+
+    Redis seems to only want client data first to request server data. The
+    DPD signature seems to pick up on some cases where server data comes
+    first, but is otherwise "valid" RESP. See if this helps lower FP rates.
+
+  * spicy-redis: Add recursion depth to server data (Evan Typanski, Corelight)
+
+  * spicy-redis: Make client data only accept bulk strings (Evan Typanski, Corelight)
+
+  * spicy-redis: Add dpd signature and clean pcaps (Evan Typanski, Corelight)
+
+  * spicy-redis: Add some commands and touch up parsing (Evan Typanski, Corelight)
+
+  * spicy-redis: Add some script logic for logging (Evan Typanski, Corelight)
+
+  * spicy-redis: Separate client/server (Evan Typanski, Corelight)
+
+    This makes the parser more official and splits the client/server out
+    from each other.
+
+  * spicy-redis: Touchup logging and Spicy issues (Evan Typanski, Corelight)
+
+  * spicy-redis: Add synchronization and pipeline support (Evan Typanski, Corelight)
+
+  * spicy-redis: Begin Spicy Redis analyzer (Evan Typanski, Corelight)
+
+8.0.0-dev.209 | 2025-05-26 16:08:44 +0200
+
+  * btest: Add test for Cluster::hello zero-timestamp (Arne Welzel, Corelight)
+
+  * EventMgr/Enqueue: Add automatic timestamp metadata to local events, only (Arne Welzel, Corelight)
+
+    It seems less surprising if only local events receive automatic network
+    timestamp metadata. For remote events the automatic value will most
+    likely be misleading.
+
+  * cluster and broker: Propagate zero-timestamp as metadata, too. (Arne Welzel, Corelight)
+
+    This will be cleaned up later to just pass all contained metadata from
+    a cluster event to the queued event, but for now do this here, otherwise
+    we break some internal tests.
+
+8.0.0-dev.204 | 2025-05-23 12:13:41 -0700
+
+  * Redis: bump version of hiredis required (Tim Wojtulewicz, Corelight)
+
+  * Redis: return proper error if connection fails (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.201 | 2025-05-23 20:57:54 +0200
+
+  * Add generic event metadata, part 1 (Arne Welzel, Corelight)
+
+    The ``ts`` member of ``Event`` was removed in favor of a more generic
+    approach that can hold any event metadata. Further, the Zeek script-layer
+    API for registering event metadata types was added.
+
+    Event instances do not network timestamp metadata by default anymore.
+    This feature can be re-enabled via EventMetadata::add_network_timestamp=T.
+
+8.0.0-dev.191 | 2025-05-23 08:32:00 -0700
+
+  * Remove FindClangTidy.cmake, update cmake submodule (Tim Wojtulewicz, Corelight)
+
+8.0.0-dev.188 | 2025-05-22 16:54:58 -0700
+
+  * SQLite: Add TODO note about possibly using sqlite3_busy_timeout (Tim Wojtulewicz, Corelight)
+
+  * SQLite: Fix typo in variable name causing pragmas not to retry on busy (Tim Wojtulewicz, Corelight)
+
+  * SQLite: Use tableval iteration instead of ToMap for pragmas (Tim Wojtulewicz, Corelight)
+
+  * SQLite: Fix logging/error messages around executing pragmas (Tim Wojtulewicz, Corelight)
+
+  * Disable sqlite-cluster btest (Tim Wojtulewicz, Corelight)
+
+    This test is being flaky on some platforms and still having problems
+    with executing pragmas at startup. Disable it for now until it can be
+    fixed.
+
 8.0.0-dev.181 | 2025-05-21 12:47:01 -0700
 
   * Update baseline of sqlite-basic btest after recent changes (Tim Wojtulewicz, Corelight)

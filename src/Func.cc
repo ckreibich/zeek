@@ -866,7 +866,7 @@ static std::set<EventGroupPtr> get_func_groups(const std::vector<AttrPtr>& attrs
         }
 
         auto group = event_registry->RegisterGroup(EventGroupKind::Attribute, v->AsStringVal()->ToStdStringView());
-        groups.insert(group);
+        groups.insert(std::move(group));
     }
 
     return groups;
@@ -915,7 +915,7 @@ zeek::RecordValPtr make_backtrace_element(std::string_view name, const VectorVal
     static auto line_location_idx = elem_type->FieldOffset("line_location");
 
     auto elem = make_intrusive<RecordVal>(elem_type);
-    elem->Assign(function_name_idx, name.data());
+    elem->Assign(function_name_idx, name);
     elem->Assign(function_args_idx, args);
 
     if ( loc ) {

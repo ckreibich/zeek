@@ -37,15 +37,17 @@ public:
      * @param copy Flag for whether the data should be copied into the Key
      * during construction. This defaults to false because normally the only time
      * data is copied into the key is when it's inserted into the session map.
+     * @param adopt Flag for whether the new instance should adopt ownership of
+     * the key data as-is.
      */
-    Key(const void* key_data, size_t size, size_t type, bool copy = false);
+    Key(const void* key_data, size_t size, size_t type, bool copy = false, bool adopt = false);
 
     ~Key();
 
     // Implement move semantics for Key, since they're used as keys
     // in a map.
-    Key(Key&& rhs);
-    Key& operator=(Key&& rhs);
+    Key(Key&& rhs) noexcept;
+    Key& operator=(Key&& rhs) noexcept;
 
     // Explicitly delete the copy constructor and operator since copying
     // may cause issues with double-freeing pointers.
@@ -70,7 +72,7 @@ private:
     const uint8_t* data = nullptr;
     size_t size = 0;
     size_t type = CONNECTION_KEY_TYPE;
-    bool copied = false;
+    bool owns_data = false;
 };
 
 struct KeyHash {

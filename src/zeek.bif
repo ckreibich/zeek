@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 
 #include <algorithm>
-#include <cmath>
+#include <cinttypes>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -399,6 +399,77 @@ function set_network_time%(nt: time%): bool
 function current_event_time%(%): time
 	%{
 	return zeek::make_intrusive<zeek::TimeVal>(zeek::event_mgr.CurrentEventTime());
+	%}
+
+## Register the expected Zeek type for event metadata.
+##
+## id: The event metadata identifier.
+##
+## t: A type expression or type alias. The type cannot be ``any``, ``func``,
+##    ``file``, ``opaque`` or a composite type containing one of these types.
+##
+## Returns: true if the registration was successful, false if *id* is
+##          registered with a different type already, or type is invalid.
+##
+## .. zeek:see:: EventMetadata::current EventMetadata::current_all
+function EventMetadata::register%(id: EventMetadata::ID, t: any%): bool
+       %{
+       const auto& tty = t->GetType();
+
+       if ( tty->Tag() != zeek::TYPE_TYPE )
+               {
+               zeek::emit_builtin_error("register_event_metadata() expects type");
+               return zeek::val_mgr->False();
+               }
+
+       EnumValPtr idvp = {zeek::NewRef{}, id->AsEnumVal()};
+
+       bool r = zeek::event_registry->RegisterMetadata(idvp, tty->AsTypeType()->GetType());
+       return zeek::val_mgr->Bool(r);
+       %}
+
+## Query the current event's metadata with identifier *id*.
+##
+## id: The metadata identifier, e.g. ``EventMetadata::NETWORK_TIMESTAMP``.
+##
+## Returns: A vector of values. The vector is empty if no metadata with
+##          the given identifier is attached to this event, otherwise a
+##          vector whose elements are of the type used during registration.
+##
+## .. zeek:see:: EventMetadata::register EventMetadata::current_all
+function EventMetadata::current%(id: EventMetadata::ID%): any_vec
+	%{
+	static const auto& vt = zeek::id::find_type<zeek::VectorType>("any_vec");
+
+	const auto* event = zeek::event_mgr.CurrentEvent();
+	if ( ! event )
+		return zeek::make_intrusive<zeek::VectorVal>(vt);
+
+	return event->MetadataValues({zeek::NewRef{}, id->AsEnumVal()});
+	%}
+
+## Query all of the current event's metadata.
+##
+## Returns: A vector :zeek:see:`EventMetadata::Entry` elements holding all
+##          the metadata attached to this event.
+##
+## .. zeek:see:: EventMetadata::register EventMetadata::current
+function EventMetadata::current_all%(%): event_metadata_vec
+	%{
+	static const auto& vt = zeek::id::find_type<zeek::VectorType>("event_metadata_vec");
+	auto result = zeek::make_intrusive<zeek::VectorVal>(vt);
+
+	const auto* event = zeek::event_mgr.CurrentEvent();
+	if ( ! event )
+		return result;
+
+	if ( const auto* mdv = event->Metadata() ) {
+		for ( const auto& entry : *mdv )
+			result->Append(entry.BuildVal());
+
+	}
+
+	return result;
 	%}
 
 ## Returns a system environment variable.
@@ -3228,10 +3299,11 @@ function ptr_name_to_addr%(s: string%): addr
 		uint32_t b[32];
 		char ss[9]; // this will contain "ip6.arpa"
 		if ( sscanf(s->CheckString(),
-			"%1x.%1x.%1x.%1x.%1x.%1x.%1x.%1x."
-			"%1x.%1x.%1x.%1x.%1x.%1x.%1x.%1x."
-			"%1x.%1x.%1x.%1x.%1x.%1x.%1x.%1x."
-			"%1x.%1x.%1x.%1x.%1x.%1x.%1x.%1x.%8s",
+			"%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32
+			".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32
+			".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32
+			".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32 ".%1" SCNx32
+            ".%8s",
 			b+31, b+30, b+29, b+28, b+27, b+26, b+25, b+24,
 			b+23, b+22, b+21, b+20, b+19, b+18, b+17, b+16,
 			b+15, b+14, b+13, b+12, b+11, b+10, b+9, b+8,
@@ -5248,6 +5320,7 @@ function from_json%(s: string, t: any, key_func: string_mapper &default=from_jso
 	static auto result_type = zeek::id::find_type<RecordType>("from_json_result");
 	static auto v_idx = result_type->FieldOffset("v");
 	static auto valid_idx = result_type->FieldOffset("valid");
+	static auto err_idx = result_type->FieldOffset("err");
 	static auto default_key_func_ptr = zeek::id::find_func("from_json_default_key_mapper");
 
 	auto rval = zeek::make_intrusive<RecordVal>(result_type);
@@ -5276,7 +5349,7 @@ function from_json%(s: string, t: any, key_func: string_mapper &default=from_jso
 	else
 		{
 		rval->Assign(valid_idx, false);
-                rval->Assign(result_type->FieldOffset("err"), res.error().c_str());
+		rval->Assign(err_idx, res.error().c_str());
 		}
 
 	return std::move(rval);
