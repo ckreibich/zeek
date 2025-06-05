@@ -26,6 +26,8 @@ public:
     virtual zeek::detail::ConnKeyPtr GetKey(const ConnTuple& tuple);
     virtual zeek::detail::ConnKeyPtr GetKey(Val* v);
 
+    virtual void TrackResult(const ConnTuple& tuple, Connection* conn) {};
+
     virtual void FillConnIdVal(detail::ConnKeyPtr key, RecordValPtr& tuple) {};
 
     static zeek::conntuple::BuilderPtr Instantiate() { return std::make_unique<Builder>(); }
