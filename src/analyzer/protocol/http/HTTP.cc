@@ -117,6 +117,9 @@ void HTTP_Entity::Deliver(int len, const char* data, bool trailing_CRLF) {
                 if ( expect_data_length > 0 ) {
                     chunked_transfer_state = EXPECT_CHUNK_DATA;
                     SetPlainDelivery(expect_data_length);
+                    auto* analyzer = http_message->MyHTTP_Analyzer();
+                    analyzer->EnqueueConnEvent(http_begin_chunk, analyzer->ConnVal(),
+                                               val_mgr->Bool(http_message->IsOrig()));
                 }
                 else {
                     // This is the last chunk
@@ -134,6 +137,11 @@ void HTTP_Entity::Deliver(int len, const char* data, bool trailing_CRLF) {
                     chunked_transfer_state = EXPECT_CHUNK_DATA_CRLF;
                 }
                 DeliverBody(len, data, false);
+                if ( expect_data_length <= 0 ) {
+                    auto* analyzer = http_message->MyHTTP_Analyzer();
+                    analyzer->EnqueueConnEvent(http_end_chunk, analyzer->ConnVal(),
+                                               val_mgr->Bool(http_message->IsOrig()));
+                }
                 break;
 
             case EXPECT_CHUNK_DATA_CRLF:
